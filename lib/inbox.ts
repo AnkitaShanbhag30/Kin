@@ -42,5 +42,13 @@ export function scanInbox() {
   const medical = inbox
     .filter((e) => e.labels.includes("medical"))
     .map((e) => ({ email_id: e.id, from: e.from, subject: e.subject, date: e.date, body: e.body }));
-  return { deliveries, medical, scanned: inbox.length };
+  // Care tasks: refills, appointments to book, and booked appointments, soonest first.
+  const care = inbox
+    .filter((e) => "care" in e && e.care)
+    .map((e) => {
+      const c = (e as Email & { care: { kind: string; title: string; due: string; place: string; detail: string; time?: string } }).care;
+      return { email_id: e.id, from: e.from, ...c, days_left: daysUntil(c.due) };
+    })
+    .sort((a, b) => a.days_left - b.days_left);
+  return { deliveries, medical, care, scanned: inbox.length };
 }

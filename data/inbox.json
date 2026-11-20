@@ -4,7 +4,9 @@
     "from": "Bayview Audiology Clinic",
     "subject": "Your visit summary from Nov 12",
     "date": "2026-11-12",
-    "labels": ["medical"],
+    "labels": [
+      "medical"
+    ],
     "body": "Hi Ruth, thank you for visiting. Your hearing test shows mild-to-moderate hearing loss in both ears. We recommend hearing aids. Over-the-counter hearing aids are a good fit for this level of loss. Bring them to your next visit and we can check the fit."
   },
   {
@@ -12,7 +14,9 @@
     "from": "Amazon",
     "subject": "Your order: SoundBoost Personal Sound Amplifier",
     "date": "2026-11-03",
-    "labels": ["order"],
+    "labels": [
+      "order"
+    ],
     "retailer": "Amazon",
     "item": "SoundBoost Personal Sound Amplifier",
     "order_ref": "112-4471983",
@@ -24,7 +28,9 @@
     "from": "Amazon",
     "subject": "Delivered: SoundBoost Personal Sound Amplifier",
     "date": "2026-11-06",
-    "labels": ["delivered"],
+    "labels": [
+      "delivered"
+    ],
     "retailer": "Amazon",
     "item": "SoundBoost Personal Sound Amplifier",
     "order_ref": "112-4471983",
@@ -36,7 +42,9 @@
     "from": "Aetna Medicare",
     "subject": "Your hearing benefits for 2027",
     "date": "2026-11-01",
-    "labels": ["insurance"],
+    "labels": [
+      "insurance"
+    ],
     "body": "Your Aetna Medicare Premier (HMO) plan includes an allowance for FDA-authorized over-the-counter hearing aids. See your Evidence of Coverage for details."
   },
   {
@@ -44,7 +52,78 @@
     "from": "Palo Alto Garden Club",
     "subject": "November newsletter: winter pruning",
     "date": "2026-11-15",
-    "labels": ["other"],
+    "labels": [
+      "other"
+    ],
     "body": "Join us on Saturday for a winter pruning walk."
+  },
+  {
+    "id": "msg-cvs-refill",
+    "from": "CVS Pharmacy",
+    "subject": "Lisinopril 10mg: time to refill",
+    "date": "2026-11-18",
+    "labels": [
+      "prescription"
+    ],
+    "care": {
+      "kind": "refill",
+      "title": "Refill Lisinopril 10mg (blood pressure)",
+      "due": "2026-11-24",
+      "place": "CVS Pharmacy, University Ave",
+      "detail": "1 refill left. Your supply runs out on Nov 24. Rx #4471-882."
+    },
+    "body": "Hi Ruth, your prescription Lisinopril 10mg (Rx #4471-882) has 1 refill left. Your current supply runs out on Nov 24. Reply REFILL or order in the CVS app. Pickup at CVS Pharmacy, University Ave."
+  },
+  {
+    "id": "msg-eye-exam",
+    "from": "Palo Alto Eye Care",
+    "subject": "Reminder: eye exam on Wed, Dec 2 at 10:30 AM",
+    "date": "2026-11-19",
+    "labels": [
+      "appointment"
+    ],
+    "care": {
+      "kind": "appointment",
+      "title": "Eye exam with Dr. Patel",
+      "due": "2026-12-02",
+      "time": "10:30 AM",
+      "place": "Palo Alto Eye Care, 210 Hamilton Ave",
+      "detail": "Bring your current glasses. Dilation possible, so plan a ride home."
+    },
+    "body": "This is a reminder of your eye exam with Dr. Patel on Wednesday, Dec 2 at 10:30 AM at 210 Hamilton Ave. Bring your current glasses. Your eyes may be dilated, so please arrange a ride home."
+  },
+  {
+    "id": "msg-wellness",
+    "from": "Dr. Lin, Stanford Primary Care",
+    "subject": "Time to book your Annual Wellness Visit",
+    "date": "2026-11-14",
+    "labels": [
+      "appointment_request"
+    ],
+    "care": {
+      "kind": "book_appointment",
+      "title": "Book your Medicare Annual Wellness Visit",
+      "due": "2026-12-15",
+      "place": "Stanford Primary Care",
+      "detail": "Covered by Medicare once a year at no cost. Book by Dec 15 to get a December slot."
+    },
+    "body": "Hi Ruth, you're due for your Medicare Annual Wellness Visit (no cost to you). Please book by Dec 15 to get a December appointment. Call (650) 555-0142 or reply to this email."
+  },
+  {
+    "id": "msg-audiology-followup",
+    "from": "Bayview Audiology Clinic",
+    "subject": "Book a hearing aid check 2 to 4 weeks after you start",
+    "date": "2026-11-12",
+    "labels": [
+      "appointment_request"
+    ],
+    "care": {
+      "kind": "book_appointment",
+      "title": "Book a hearing aid fit check at Bayview Audiology",
+      "due": "2026-12-11",
+      "place": "Bayview Audiology Clinic",
+      "detail": "Bring the hearing aids 2 to 4 weeks after you start wearing them so we can check the fit."
+    },
+    "body": "Once you start wearing hearing aids, book a fit check with us within 2 to 4 weeks. Bring the hearing aids to the visit. Call (650) 555-0199."
   }
 ]
