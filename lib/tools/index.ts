@@ -110,17 +110,32 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: "propose_purchase",
     description:
-      "Show the user ONE recommended product to approve, with the reason and the cost math. The user then taps Buy, or asks their caregiver to buy it. Call after check_fda_status and calculate_cost, then stop and wait; never place an order without approval.",
+      "Show the user 2 or 3 options to choose from (1 only if nothing else qualifies), each with a plain reason, its trade-off, and the cost math. Mark one as recommended. The user picks one and taps Buy, or asks their caregiver to choose. Call after check_fda_status (on every option) and calculate_cost, then stop and wait; never place an order without approval.",
     input_schema: {
       type: "object",
       properties: {
-        sku: { type: "string" },
-        reason: { type: "string", description: "One or two plain sentences: why this one suits her." },
-        route: { type: "string", enum: ["otc_allowance", "prescription_benefit", "out_of_pocket"] },
-        family_pays_usd: { type: "number" },
-        plan_pays_usd: { type: "number" },
+        options: {
+          type: "array",
+          minItems: 1,
+          maxItems: 3,
+          items: {
+            type: "object",
+            properties: {
+              sku: { type: "string" },
+              label: { type: "string", description: "2-4 words, e.g. 'Best fit for you', 'Lowest cost', 'Most invisible'." },
+              reason: { type: "string", description: "One plain sentence: why it suits her." },
+              tradeoff: { type: "string", description: "One plain sentence: the main downside." },
+              route: { type: "string", enum: ["otc_allowance", "prescription_benefit", "out_of_pocket"] },
+              family_pays_usd: { type: "number" },
+              plan_pays_usd: { type: "number" },
+            },
+            required: ["sku", "label", "reason", "tradeoff", "route", "family_pays_usd", "plan_pays_usd"],
+            additionalProperties: false,
+          },
+        },
+        recommended_sku: { type: "string" },
       },
-      required: ["sku", "reason", "route", "family_pays_usd", "plan_pays_usd"],
+      required: ["options", "recommended_sku"],
       additionalProperties: false,
     },
   },
@@ -310,31 +325,34 @@ export async function runTool(name: string, input: Record<string, any>, state: R
     }
 
     case "propose_purchase": {
-      const p = findProduct(input.sku);
-      if (!p) return { ok: false, sources: [], output: { error: `Unknown sku ${input.sku}` } };
-      const verdict = state.fdaChecked.get(p.sku);
-      if (verdict !== "ok")
-        return { ok: false, sources: [], output: { error: "Run check_fda_status first; only FDA hearing aids can be proposed." } };
-      return {
-        ok: true,
-        sources: [catalogSource(p)],
-        output: {
+      const opts = (input.options ?? []) as Record<string, any>[];
+      const bad = opts.filter((o) => !findProduct(o.sku) || state.fdaChecked.get(o.sku) !== "ok").map((o) => o.sku);
+      if (!opts.length || bad.length)
+        return { ok: false, sources: [], output: { error: "Run check_fda_status on every option first; only FDA hearing aids can be proposed.", not_ok: bad } };
+      const options = opts.map((o) => {
+        const p = findProduct(o.sku)!;
+        return {
           sku: p.sku,
           name: p.name,
-          brand: p.brand,
           style: p.style,
           rechargeable: p.rechargeable,
           retailer: p.retailer,
           product_url: p.url,
           price_pair_usd: p.price_pair_usd,
           return_window_days: p.return_window_days,
-          fda_note: p.fda_note,
-          reason: input.reason,
-          route: input.route,
-          family_pays_usd: money(input.family_pays_usd),
-          plan_pays_usd: money(input.plan_pays_usd),
-          awaiting: "approval",
-        },
+          label: o.label,
+          reason: o.reason,
+          tradeoff: o.tradeoff,
+          route: o.route,
+          family_pays_usd: money(o.family_pays_usd),
+          plan_pays_usd: money(o.plan_pays_usd),
+        };
+      });
+      const recommended = options.some((o) => o.sku === input.recommended_sku) ? input.recommended_sku : options[0].sku;
+      return {
+        ok: true,
+        sources: options.map((o) => catalogSource(findProduct(o.sku)!)),
+        output: { options, recommended_sku: recommended, awaiting: "choice and approval" },
       };
     }
 

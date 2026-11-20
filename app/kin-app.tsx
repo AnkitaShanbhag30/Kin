@@ -16,10 +16,12 @@ type Msg = {
   runId?: string; headline?: string; files?: string[]; proposalRunId?: string;
 };
 type Attachment = { name: string; media_type: string; data: string };
-type Proposal = {
+type Option = {
   sku: string; name: string; style: string; retailer: string; product_url: string; price_pair_usd: number;
-  return_window_days: number; reason: string; route: string; family_pays_usd: number; plan_pays_usd: number;
+  return_window_days: number; label: string; reason: string; tradeoff: string; route: string;
+  family_pays_usd: number; plan_pays_usd: number;
 };
+type Proposal = { options: Option[]; recommended_sku: string };
 type AskExtra = { approvedPurchase?: { sku: string; approvedBy: string }; from?: "user" | "caregiver"; attachments?: Attachment[] };
 type ToolEnd = Extract<AuditEvent, { kind: "tool_end" }>;
 type Order = {
@@ -136,7 +138,7 @@ export function KinApp({
     }
   }
 
-  function approve(p: Proposal, by: "user" | "caregiver") {
+  function approve(p: Option, by: "user" | "caregiver") {
     const name = by === "user" ? session.user.firstName : session.caregiver?.firstName ?? "Family";
     ask(
       by === "user" ? `Yes, please buy the ${p.name}.` : `Approved. Go ahead and buy the ${p.name} for Mom.`,
@@ -410,7 +412,7 @@ function Chat({
   derived: { sources: Map<string, Source>; order?: Order; chosen?: Cost };
   onAsk: (t: string, extra?: AskExtra) => void; onOpenSource: (s: Source) => void; onSteps: (runId: string) => void; onStop: () => void;
   onInvite: () => void; onPostToFamily: (t: string) => void;
-  onApprove: (p: Proposal, by: "user" | "caregiver") => void; onShare: (runId: string) => void;
+  onApprove: (p: Option, by: "user" | "caregiver") => void; onShare: (runId: string) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [files, setFiles] = useState<Attachment[]>([]);
@@ -528,17 +530,15 @@ function Chat({
                 </div>
                 {m.proposalRunId && proposalInRun(runs[m.proposalRunId]) && (
                   <div className="mt-4">
-                    <ProposalCard p={proposalInRun(runs[m.proposalRunId])!} done={ordered.has(proposalInRun(runs[m.proposalRunId])!.sku)}
-                      busy={!!running} actions={[{ label: `Approve as ${session.caregiver?.firstName} (demo)`, onClick: (p) => onApprove(p, "caregiver") }]} />
+                    <ProposalCard p={proposalInRun(runs[m.proposalRunId])!} ordered={ordered} busy={!!running}
+                      buyLabel={`Approve this one as ${session.caregiver?.firstName} (demo)`} onBuy={(o) => onApprove(o, "caregiver")} />
                   </div>
                 )}
                 {m.runId && !order && proposalInRun(runs[m.runId]) && chat === "kin" && (
                   <div className="mt-4">
-                    <ProposalCard p={proposalInRun(runs[m.runId])!} done={ordered.has(proposalInRun(runs[m.runId])!.sku)} busy={!!running}
-                      actions={[
-                        { label: "Buy it", onClick: (p) => onApprove(p, "user") },
-                        { label: session.caregiver?.joined ? `Ask ${session.caregiver.firstName} to buy it` : "Ask family to buy it", onClick: () => onShare(m.runId!), secondary: true },
-                      ]} />
+                    <ProposalCard p={proposalInRun(runs[m.runId])!} ordered={ordered} busy={!!running}
+                      buyLabel="Buy this one" onBuy={(o) => onApprove(o, "user")}
+                      share={{ label: session.caregiver?.joined ? `Ask ${session.caregiver.firstName} to choose` : "Ask family to choose", onClick: () => onShare(m.runId!) }} />
                   </div>
                 )}
                 {m.runId && <ActionCards events={runs[m.runId]} />}
@@ -616,39 +616,51 @@ function proposalInRun(events?: AuditEvent[]) {
   return events?.find((e): e is ToolEnd => e.kind === "tool_end" && e.tool === "propose_purchase" && e.ok)?.output as Proposal | undefined;
 }
 
-function ProposalCard({ p, actions, done, busy }: {
-  p: Proposal; done: boolean; busy: boolean;
-  actions: { label: string; onClick: (p: Proposal) => void; secondary?: boolean }[];
+function ProposalCard({ p, ordered, busy, buyLabel, onBuy, share }: {
+  p: Proposal; ordered: Set<string>; busy: boolean; buyLabel: string; onBuy: (o: Option) => void;
+  share?: { label: string; onClick: () => void };
 }) {
+  const chosen = p.options.find((o) => ordered.has(o.sku));
+  // Recommended first; at most three, so the choice stays easy.
+  const options = [...p.options].sort((a, b) => Number(b.sku === p.recommended_sku) - Number(a.sku === p.recommended_sku)).slice(0, 3);
   return (
-    <Card>
-      <div className="flex gap-4">
-        <ProductImage sku={p.sku} style={p.style} />
-        <div className="min-w-0">
-          <Pill tone="brand">Kin suggests</Pill>
-          <h3 className="mt-2 text-2xl font-bold leading-tight">{p.name}</h3>
-          <p className="mt-1 text-lg">{p.reason}</p>
-        </div>
-      </div>
-      <div className="mt-4 rounded-xl bg-good-bg p-4">
-        <div className="text-3xl font-bold text-good">You pay {usd(p.family_pays_usd)}</div>
-        {p.plan_pays_usd > 0 && <div className="text-lg text-good">Aetna pays you back {usd(p.plan_pays_usd)} of the {usd(p.price_pair_usd)} price.</div>}
-      </div>
-      <ul className="mt-3 space-y-1 text-lg">
-        <li>✓ Real FDA hearing aid</li>
-        <li>✓ {p.return_window_days} days to return it at {p.retailer}</li>
-      </ul>
-      {done ? (
-        <div className="mt-4"><Pill tone="good">✓ Approved and ordered</Pill></div>
-      ) : (
-        <div className="mt-5 flex flex-wrap gap-3">
-          {actions.map((a) => (
-            <Button key={a.label} kind={a.secondary ? "secondary" : "primary"} disabled={busy} onClick={() => a.onClick(p)}>{a.label}</Button>
-          ))}
-        </div>
-      )}
-      <p className="mt-3 text-sm text-muted">Nothing is bought until someone taps approve. Demo store: no real purchase.</p>
-    </Card>
+    <div className="space-y-3">
+      <div className="text-lg font-bold">{chosen ? "You chose:" : `Pick one${options.length > 1 ? ` of ${options.length}` : ""}:`}</div>
+      {options.filter((o) => !chosen || o.sku === chosen.sku).map((o) => {
+        const pick = o.sku === p.recommended_sku;
+        return (
+          <Card key={o.sku} className={pick && !chosen ? "border-2 border-brand" : ""}>
+            <div className="flex gap-4">
+              <ProductImage sku={o.sku} style={o.style} size={104} />
+              <div className="min-w-0">
+                <div className="flex flex-wrap gap-2">
+                  {pick && <Pill tone="brand">★ Kin&apos;s pick</Pill>}
+                  <Pill>{o.label}</Pill>
+                </div>
+                <h3 className="mt-2 text-xl font-bold leading-tight">{o.name}</h3>
+                <p className="mt-1 text-lg">{o.reason}</p>
+                <p className="mt-1 text-base text-caution">⚠ {o.tradeoff}</p>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="text-2xl font-bold text-good">You pay {usd(o.family_pays_usd)}</div>
+                <div className="text-base text-muted">
+                  {o.plan_pays_usd > 0 ? `Aetna pays back ${usd(o.plan_pays_usd)} · ` : ""}{o.return_window_days} days to return · FDA hearing aid ✓
+                </div>
+              </div>
+              {chosen ? (
+                <Pill tone="good">✓ Approved and ordered</Pill>
+              ) : (
+                <Button kind={pick ? "primary" : "secondary"} disabled={busy} onClick={() => onBuy(o)}>{buyLabel}</Button>
+              )}
+            </div>
+          </Card>
+        );
+      })}
+      {!chosen && share && <Button kind="ghost" className="-ml-4" disabled={busy} onClick={share.onClick}>{share.label}</Button>}
+      <p className="text-sm text-muted">Nothing is bought until someone taps to approve. Demo store: no real purchase.</p>
+    </div>
   );
 }
 
@@ -793,7 +805,7 @@ function summarize(tool: string, input: any, output: any): string {
     case "check_fda_status": return output?.verdict ? `${output.sku}: ${output.verdict === "ok" ? "real hearing aid" : output.verdict === "caution" ? "not confirmed, avoid" : "not a hearing aid"}` : input?.sku;
     case "calculate_cost": return output?.family_pays_usd != null ? `You'd pay ${usd(output.family_pays_usd)}` : output?.error ?? "";
     case "place_order": return output?.order_id ? `${output.order_id} · return by ${output.return_by}` : output?.error ?? "";
-    case "propose_purchase": return output?.name ? `${output.name} · you pay ${usd(output.family_pays_usd)} · waiting for approval` : output?.error ?? "";
+    case "propose_purchase": return output?.options ? `${output.options.length} options · waiting for a choice` : output?.error ?? "";
     case "start_return": return output?.return_id ? `${output.return_id} · ${usd(output.refund_usd)} back` : output?.error ?? "";
     case "prepare_reimbursement_claim": return output?.claim_id ? `${usd(output.claim_amount_usd)} claim ready · send by ${output.submit_by}` : output?.error ?? "";
     case "schedule_reminder": return `${input?.date} · ${input?.title}`;

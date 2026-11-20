@@ -25,7 +25,11 @@ async function turn(prompt: string, opts: Parameters<typeof runAgent>[2]) {
 async function main() {
   console.log("— turn 1: propose");
   const t1 = await turn(DEMO_PROMPT, base);
-  const proposal = t1.ends.find((e) => e.tool === "propose_purchase" && e.ok)?.output as { sku: string; name: string } | undefined;
+  const proposed = t1.ends.find((e) => e.tool === "propose_purchase" && e.ok)?.output as
+    | { options: { sku: string; name: string }[]; recommended_sku: string }
+    | undefined;
+  const proposal = proposed?.options.find((o) => o.sku === proposed.recommended_sku);
+  console.log("options:", proposed?.options.map((o) => o.sku).join(", "));
   console.log("— turn 2: approve", proposal?.sku);
   const t2 = proposal
     ? await turn(`Yes, please buy the ${proposal.name}.`, {
@@ -37,6 +41,7 @@ async function main() {
 
   const cited = new Set(t1.ends.flatMap((e) => e.sources).filter((s) => s.provider === "senso" || s.provider === "local-fallback").map((s) => s.content_id));
   const checks = {
+    proposed_choices: (proposed?.options.length ?? 0) >= 2,
     proposed_without_buying: Boolean(proposal) && !t1.ends.some((e) => e.tool === "place_order" && e.ok),
     context_sources_ge_3: cited.size >= 3,
     order_placed_after_approval: t2.ends.some((e) => e.tool === "place_order" && e.ok),
