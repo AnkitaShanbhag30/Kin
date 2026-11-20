@@ -13,9 +13,12 @@ export type RunState = {
   orders: Record<string, unknown>[];
   personaInquiryId?: string;
   gmailConnected?: boolean;
+  approved?: { sku: string; approvedBy: string };
 };
 
-export const newRunState = (opts: { personaInquiryId?: string; gmailConnected?: boolean } = {}): RunState => ({
+export const newRunState = (
+  opts: { personaInquiryId?: string; gmailConnected?: boolean; approved?: { sku: string; approvedBy: string } } = {},
+): RunState => ({
   seenSourceIds: new Set(),
   fdaChecked: new Map(),
   orders: [],
@@ -105,9 +108,41 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
   {
+    name: "propose_purchase",
+    description:
+      "Show the user 2 or 3 options to choose from (1 only if nothing else qualifies), each with a plain reason, its trade-off, and the cost math. Mark one as recommended. The user picks one and taps Buy, or asks their caregiver to choose. Call after check_fda_status (on every option) and calculate_cost, then stop and wait; never place an order without approval.",
+    input_schema: {
+      type: "object",
+      properties: {
+        options: {
+          type: "array",
+          minItems: 1,
+          maxItems: 3,
+          items: {
+            type: "object",
+            properties: {
+              sku: { type: "string" },
+              label: { type: "string", description: "2-4 words, e.g. 'Best fit for you', 'Lowest cost', 'Most invisible'." },
+              reason: { type: "string", description: "One plain sentence: why it suits her." },
+              tradeoff: { type: "string", description: "One plain sentence: the main downside." },
+              route: { type: "string", enum: ["otc_allowance", "prescription_benefit", "out_of_pocket"] },
+              family_pays_usd: { type: "number" },
+              plan_pays_usd: { type: "number" },
+            },
+            required: ["sku", "label", "reason", "tradeoff", "route", "family_pays_usd", "plan_pays_usd"],
+            additionalProperties: false,
+          },
+        },
+        recommended_sku: { type: "string" },
+      },
+      required: ["options", "recommended_sku"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "place_order",
     description:
-      "Place the order with the DEMO merchant (simulated checkout; no real money moves). Only after check_fda_status. Returns order id, delivery date, return-by date and reimbursement claim deadline.",
+      "Place the order with the DEMO merchant (simulated checkout; no real money moves). Only for a product the user (or their caregiver) has approved, and only after check_fda_status in this session. Returns order id, delivery date, return-by date and reimbursement claim deadline.",
     input_schema: {
       type: "object",
       properties: {
@@ -117,6 +152,42 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
         buyer_name: { type: "string" },
       },
       required: ["sku", "payment_method", "ship_to", "buyer_name"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "start_return",
+    description:
+      "Start a return for something the user bought (DEMO: simulated with the retailer). Use the delivery date from email and the return window from trusted context. Returns a return number, drop-off instructions and the refund estimate.",
+    input_schema: {
+      type: "object",
+      properties: {
+        item: { type: "string" },
+        retailer: { type: "string" },
+        order_ref: { type: "string" },
+        delivered_on: { type: "string", description: "YYYY-MM-DD" },
+        return_window_days: { type: "integer" },
+        refund_usd: { type: "number" },
+        reason: { type: "string" },
+      },
+      required: ["item", "retailer", "order_ref", "delivered_on", "return_window_days", "refund_usd", "reason"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "prepare_reimbursement_claim",
+    description:
+      "Fill in the insurance OTC hearing-aid reimbursement claim from the order receipt (DEMO: prepared, not submitted). Use plan rules from trusted context for the amount and deadline.",
+    input_schema: {
+      type: "object",
+      properties: {
+        order_id: { type: "string" },
+        plan: { type: "string" },
+        claim_amount_usd: { type: "number" },
+        submit_by: { type: "string", description: "YYYY-MM-DD" },
+        source_content_ids: { type: "array", items: { type: "string" } },
+      },
+      required: ["order_id", "plan", "claim_amount_usd", "submit_by", "source_content_ids"],
       additionalProperties: false,
     },
   },
@@ -253,9 +324,92 @@ export async function runTool(name: string, input: Record<string, any>, state: R
       };
     }
 
+    case "propose_purchase": {
+      const opts = (input.options ?? []) as Record<string, any>[];
+      const bad = opts.filter((o) => !findProduct(o.sku) || state.fdaChecked.get(o.sku) !== "ok").map((o) => o.sku);
+      if (!opts.length || bad.length)
+        return { ok: false, sources: [], output: { error: "Run check_fda_status on every option first; only FDA hearing aids can be proposed.", not_ok: bad } };
+      const options = opts.map((o) => {
+        const p = findProduct(o.sku)!;
+        return {
+          sku: p.sku,
+          name: p.name,
+          style: p.style,
+          rechargeable: p.rechargeable,
+          behind_the_ear: p.behind_the_ear,
+          self_fitting_app: p.self_fitting_app,
+          fda_category: p.fda_category,
+          retailer: p.retailer,
+          product_url: p.url,
+          price_pair_usd: p.price_pair_usd,
+          return_window_days: p.return_window_days,
+          label: o.label,
+          reason: o.reason,
+          tradeoff: o.tradeoff,
+          route: o.route,
+          family_pays_usd: money(o.family_pays_usd),
+          plan_pays_usd: money(o.plan_pays_usd),
+        };
+      });
+      const recommended = options.some((o) => o.sku === input.recommended_sku) ? input.recommended_sku : options[0].sku;
+      return {
+        ok: true,
+        sources: options.map((o) => catalogSource(findProduct(o.sku)!)),
+        output: { options, recommended_sku: recommended, awaiting: "choice and approval" },
+      };
+    }
+
+    case "start_return": {
+      const deadline = day(new Date(input.delivered_on + "T12:00:00"), input.return_window_days);
+      if (new Date(deadline + "T23:59:59") < new Date())
+        return { ok: false, sources: [], output: { error: `Return window closed on ${deadline}.` } };
+      return {
+        ok: true,
+        sources: [],
+        output: {
+          return_id: `RET-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+          status: "Return started (demo, simulated with the retailer)",
+          item: input.item,
+          retailer: input.retailer,
+          order_ref: input.order_ref,
+          return_by: deadline,
+          refund_usd: money(input.refund_usd),
+          drop_off: "Any UPS Store. Bring the item in its box; the QR code is in this message. No printing needed.",
+          refund_timing: "3 to 5 business days after drop-off",
+        },
+      };
+    }
+
+    case "prepare_reimbursement_claim": {
+      const order = state.orders.find((o) => o.order_id === input.order_id) as Record<string, any> | undefined;
+      const cited: string[] = input.source_content_ids ?? [];
+      if (!cited.length || cited.some((id) => !state.seenSourceIds.has(id)))
+        return { ok: false, sources: [], output: { error: "Cite plan rules retrieved in this session." } };
+      return {
+        ok: true,
+        sources: [],
+        output: {
+          claim_id: `CLM-DRAFT-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+          status: "Ready to submit (demo, not sent to the insurer)",
+          plan: input.plan,
+          form: "OTC Hearing Aid Reimbursement Form",
+          member: "Ruth Sharma",
+          item: order?.name ?? "Hearing aids",
+          purchase_date: order?.ordered_on ?? null,
+          amount_paid_usd: order?.total_usd ?? null,
+          claim_amount_usd: money(input.claim_amount_usd),
+          attachments: ["Itemized receipt (from the order email)", "FDA OTC category on receipt"],
+          submit_by: input.submit_by,
+          cited_content_ids: cited,
+        },
+      };
+    }
+
     case "place_order": {
       const p = findProduct(input.sku);
       if (!p) return { ok: false, sources: [], output: { error: `Unknown sku ${input.sku}` } };
+      if (state.approved?.sku !== p.sku)
+        return { ok: false, sources: [], output: { error: "Refused: this purchase has not been approved. Call propose_purchase and wait for approval." } };
       const verdict = state.fdaChecked.get(p.sku);
       if (!verdict) return { ok: false, sources: [], output: { error: "Refused: run check_fda_status on this sku first." } };
       if (verdict === "block")
@@ -281,6 +435,7 @@ export async function runTool(name: string, input: Record<string, any>, state: R
         return_by: day(new Date(delivery), p.return_window_days),
         otc_reimbursement_claim_by: day(today, 90),
         buyer_verification: caregiver,
+        approved_by: state.approved.approvedBy,
       };
       state.orders.push(order);
       return { ok: true, sources: [catalogSource(p)], output: order };

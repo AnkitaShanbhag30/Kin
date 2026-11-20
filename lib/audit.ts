@@ -46,7 +46,10 @@ export const TOOL_LABELS: Record<string, string> = {
   search_products: "Looked for hearing aids that suit you",
   check_fda_status: "Made sure it's a real FDA hearing aid",
   calculate_cost: "Worked out what you'll pay",
+  propose_purchase: "Gave you options to choose from",
   place_order: "Confirmed it's you and placed the order (demo store)",
+  start_return: "Started your return (demo)",
+  prepare_reimbursement_claim: "Filled in your insurance claim (demo)",
   schedule_reminder: "Added a reminder",
   brief_caregiver: "Updated your family",
 };

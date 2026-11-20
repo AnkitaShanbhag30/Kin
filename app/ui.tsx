@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Source } from "@/lib/audit";
 
 export const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -241,3 +242,41 @@ export const store = {
     } catch {}
   },
 };
+
+// Official photo if a teammate drops public/products/<sku>.jpg; otherwise a labeled style illustration.
+export function ProductImage({ sku, style, size = 120 }: { sku: string; style: string; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  if (!failed)
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={`/products/${sku}.jpg`} alt="" width={size} height={size} onError={() => setFailed(true)}
+        className="shrink-0 rounded-2xl bg-soft object-contain" style={{ width: size, height: size }} />
+    );
+  const bte = /behind/i.test(style);
+  const canal = /canal/i.test(style) && !bte;
+  return (
+    <div className="relative shrink-0 rounded-2xl bg-brand-bg" style={{ width: size, height: size }} title="Illustration of the device style">
+      <svg viewBox="0 0 100 100" className="h-full w-full" aria-label={`Illustration: ${style}`}>
+        {bte ? (
+          <>
+            <path d="M58 18c14 0 22 12 18 30-3 13-10 20-16 20" fill="none" stroke="#0b6e75" strokeWidth="10" strokeLinecap="round" />
+            <path d="M60 68c-6 4-14 8-22 8" fill="none" stroke="#475467" strokeWidth="3" />
+            <circle cx="34" cy="77" r="7" fill="#101828" />
+          </>
+        ) : canal ? (
+          <>
+            <rect x="36" y="30" width="28" height="40" rx="14" fill="#101828" />
+            <rect x="44" y="64" width="12" height="12" rx="5" fill="#0b6e75" />
+          </>
+        ) : (
+          <>
+            <ellipse cx="46" cy="50" rx="22" ry="20" fill="#101828" />
+            <ellipse cx="66" cy="52" rx="10" ry="9" fill="#0b6e75" />
+            <circle cx="40" cy="46" r="4" fill="#e6f4f5" />
+          </>
+        )}
+      </svg>
+      <span className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-bold text-brand">illustration</span>
+    </div>
+  );
+}
