@@ -192,6 +192,38 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
   {
+    name: "request_refill",
+    description:
+      "Ask the pharmacy to refill a prescription found in the user's email (DEMO: simulated). Returns a ready-by date. Never change medicines or doses; only refill what the pharmacy already has on file.",
+    input_schema: {
+      type: "object",
+      properties: {
+        medication: { type: "string" },
+        rx_number: { type: "string" },
+        pharmacy: { type: "string" },
+        supply_runs_out: { type: "string", description: "YYYY-MM-DD" },
+      },
+      required: ["medication", "rx_number", "pharmacy", "supply_runs_out"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "request_appointment",
+    description:
+      "Request an appointment with a clinic found in the user's email (DEMO: simulated request, the clinic confirms the time). Returns the requested window.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clinic: { type: "string" },
+        visit: { type: "string" },
+        book_by: { type: "string", description: "YYYY-MM-DD" },
+        preferences: { type: "string", description: "e.g. mornings, needs a ride" },
+      },
+      required: ["clinic", "visit", "book_by", "preferences"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "schedule_reminder",
     description: "Put a reminder on the family calendar (check-ins, return deadline, reimbursement claim).",
     input_schema: {
@@ -440,6 +472,38 @@ export async function runTool(name: string, input: Record<string, any>, state: R
       state.orders.push(order);
       return { ok: true, sources: [catalogSource(p)], output: order };
     }
+
+    case "request_refill": {
+      const runsOut = new Date(input.supply_runs_out + "T12:00:00");
+      const ready = day(new Date(Math.min(runsOut.getTime() - 86_400_000, Date.now() + 2 * 86_400_000)), 0);
+      return {
+        ok: true,
+        sources: [],
+        output: {
+          request_id: `RX-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+          status: "Refill requested (demo, simulated with the pharmacy)",
+          medication: input.medication,
+          rx_number: input.rx_number,
+          pharmacy: input.pharmacy,
+          ready_by: ready,
+          note: "Pharmacy will text when it's ready. Same medicine and dose as before.",
+        },
+      };
+    }
+
+    case "request_appointment":
+      return {
+        ok: true,
+        sources: [],
+        output: {
+          request_id: `APT-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+          status: "Appointment requested (demo); the clinic will confirm a time",
+          clinic: input.clinic,
+          visit: input.visit,
+          book_by: input.book_by,
+          preferences: input.preferences,
+        },
+      };
 
     case "schedule_reminder":
       return {

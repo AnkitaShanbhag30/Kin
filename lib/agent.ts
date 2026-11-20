@@ -28,6 +28,7 @@ Gmail is ${o.gmailConnected ? "connected: use search_email for deliveries, recei
 ${o.approvedPurchase
   ? `APPROVED: ${o.approvedPurchase.approvedBy} approved buying sku "${o.approvedPurchase.sku}". Now: run check_fda_status on it, place_order, schedule the reminders, prepare_reimbursement_claim if the OTC allowance applies (retrieve the plan rule to cite)${o.caregiver ? ", then brief_caregiver" : ""}.`
   : `When she asks for help buying something: understand her coverage and preferences, pick 2 or 3 good options she would actually wear (for example best fit, lowest cost, a different style), FDA-check each, work out the real out-of-pocket cost for each, then call propose_purchase with your recommendation marked and stop. She (or her caregiver) chooses and approves in the app; you never buy without that approval.`}
+When she asks about a prescription refill or an appointment: find it in her email, then request_refill or request_appointment, schedule_reminder for her (a day or two before the date)${o.caregiver ? ", and brief_caregiver so her family knows the date" : ""}. Never suggest changing a medicine or dose.
 When she wants to return something: find the delivery in her email, check the return window in trusted context, and call start_return.
 If she shares a photo or document (an audiogram, a receipt, a letter), read it and use it.
 

@@ -50,6 +50,8 @@ export const TOOL_LABELS: Record<string, string> = {
   place_order: "Confirmed it's you and placed the order (demo store)",
   start_return: "Started your return (demo)",
   prepare_reimbursement_claim: "Filled in your insurance claim (demo)",
+  request_refill: "Asked the pharmacy for a refill (demo)",
+  request_appointment: "Asked the clinic for an appointment (demo)",
   schedule_reminder: "Added a reminder",
   brief_caregiver: "Updated your family",
 };

@@ -35,6 +35,11 @@ type Reminder = { date: string; title: string; details: string };
 export type InboxScan = {
   deliveries: { email_id: string; item: string; retailer: string; order_ref: string; delivered_on: string; return_by: string; days_left: number }[];
   medical: { email_id: string; from: string; subject: string; date: string; body: string }[];
+  care: CareTask[];
+};
+type CareTask = {
+  email_id: string; from: string; kind: "refill" | "appointment" | "book_appointment";
+  title: string; due: string; place: string; detail: string; time?: string; days_left: number;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -52,6 +57,7 @@ export function KinApp({
   const [openSource, setOpenSource] = useState<Source | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [careReminders, setCareReminders] = useState<(Reminder & { email_id: string })[]>([]);
   const ac = useRef<AbortController | null>(null);
 
   const push = (m: Omit<Msg, "id">) => setMessages((prev) => [...prev, { ...m, id: uid() }]);
@@ -155,6 +161,22 @@ export function KinApp({
     setView("family");
   }
 
+  // "Remind me and Priya": add to reminders and tell the family chat, so family is notified too.
+  function remindBoth(t: CareTask) {
+    const remindOn = (() => {
+      const d = new Date(t.due + "T12:00:00");
+      d.setDate(d.getDate() - (t.kind === "book_appointment" ? 7 : 1));
+      return d.toISOString().slice(0, 10);
+    })();
+    setCareReminders((r) => [...r, { email_id: t.email_id, date: remindOn, title: t.title, details: `${t.kind === "appointment" ? `On ${niceDate(t.due)}${t.time ? ` at ${t.time}` : ""}` : `By ${niceDate(t.due)}`} · ${t.place}. ${t.detail}` }]);
+    if (session.caregiver?.joined)
+      push({
+        chat: "family",
+        from: "kin",
+        text: `Reminder set for ${session.user.firstName} and ${session.caregiver.firstName}: **${t.title}** ${t.kind === "appointment" ? `on ${niceDate(t.due)}${t.time ? ` at ${t.time}` : ""}` : `by ${niceDate(t.due)}`} (${t.place}). I'll nudge you both on ${niceDate(remindOn)}. Found in ${session.user.firstName}'s email from ${t.from}.`,
+      });
+  }
+
   function invite() {
     update({ caregiver: { ...DEMO_CAREGIVER, joined: false } });
     setInviteOpen(false);
@@ -227,6 +249,7 @@ export function KinApp({
               session={session} inbox={inbox} order={derived.order} chosen={derived.chosen} dismissed={dismissed}
               onDismiss={(id) => setDismissed((d) => [...d, id])} onAsk={(t) => ask(t)} onInvite={() => setInviteOpen(true)}
               onConnectGmail={() => update({ gmail: true })} onSteps={() => setPanel({ tab: "steps" })}
+              reminded={careReminders.map((r) => r.email_id)} onRemind={remindBoth}
             />
           )}
           {view !== "today" && (
@@ -244,7 +267,7 @@ export function KinApp({
 
       {panel && (
         <ActivityPanel
-          panel={panel} setPanel={setPanel} runs={runs} reminders={derived.reminders} sources={derived.sources}
+          panel={panel} setPanel={setPanel} runs={runs} reminders={[...careReminders, ...derived.reminders].sort((a, b) => a.date.localeCompare(b.date))} sources={derived.sources}
           onOpenSource={setOpenSource} config={config} running={running}
         />
       )}
@@ -278,21 +301,24 @@ function Conn({ ok, label, detail }: { ok: boolean; label: string; detail: strin
 /* ---------------- Today ---------------- */
 
 function Today({
-  session, inbox, order, chosen, dismissed, onDismiss, onAsk, onInvite, onConnectGmail, onSteps,
+  session, inbox, order, chosen, dismissed, onDismiss, onAsk, onInvite, onConnectGmail, onSteps, reminded, onRemind,
 }: {
   session: Session; inbox?: InboxScan; order?: Order; chosen?: Cost; dismissed: string[];
   onDismiss: (id: string) => void; onAsk: (t: string) => void; onInvite: () => void; onConnectGmail: () => void; onSteps: () => void;
+  reminded: string[]; onRemind: (t: CareTask) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  const cards: { key: string; node: React.ReactNode }[] = [];
-  if (order) cards.push({ key: "order", node: <OrderCard order={order} chosen={chosen} onSteps={onSteps} /> });
+  // Each card has an urgency (days until it matters); the most urgent shows first.
+  const cards: { key: string; node: React.ReactNode; days?: number }[] = [];
+  if (order) cards.push({ key: "order", days: -1, node: <OrderCard order={order} chosen={chosen} onSteps={onSteps} /> });
   if (session.gmail)
     inbox?.deliveries.filter((d) => !dismissed.includes(d.email_id)).forEach((d) =>
       cards.push({
         key: d.email_id,
+        days: d.days_left,
         node: (
           <Card className="border-urgent/30">
             <Pill tone="urgent">Return by {niceDate(d.return_by)} · {d.days_left} days left</Pill>
@@ -306,6 +332,41 @@ function Today({
         ),
       }),
     );
+  if (session.gmail)
+    inbox?.care?.filter((t) => !dismissed.includes(t.email_id)).forEach((t) => {
+      const done = reminded.includes(t.email_id);
+      const tone = t.days_left <= 7 ? "urgent" : t.days_left <= 14 ? "caution" : "brand";
+      const icon = t.kind === "refill" ? "💊" : "📅";
+      const when = t.kind === "appointment" ? `${niceDate(t.due)}${t.time ? ` · ${t.time}` : ""}` : `By ${niceDate(t.due)}`;
+      const ask =
+        t.kind === "refill"
+          ? `Please order my ${t.title.replace(/^Refill\s+/i, "")} refill before it runs out, and remind me and ${session.caregiver?.firstName ?? "my family"}.`
+          : t.kind === "book_appointment"
+            ? `Please help me ${t.title.charAt(0).toLowerCase() + t.title.slice(1)}. Mornings are best for me.`
+            : `Remind me about my ${t.title} and help me plan a ride.`;
+      cards.push({
+        key: t.email_id,
+        days: t.days_left,
+        node: (
+          <Card>
+            <div className="flex flex-wrap gap-2">
+              <Pill tone={tone}>{icon} {when} · {t.days_left} days</Pill>
+              <Pill>From your email</Pill>
+            </div>
+            <h3 className="mt-3 text-2xl font-bold">{t.title}</h3>
+            <p className="mt-1 text-lg text-muted">{t.place}. {t.detail}</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {done ? (
+                <Pill tone="good">✓ Reminder set{session.caregiver?.joined ? ` for you and ${session.caregiver.firstName}` : ""}</Pill>
+              ) : (
+                <Button onClick={() => onRemind(t)}>{session.caregiver?.joined ? `Remind me and ${session.caregiver.firstName}` : "Remind me"}</Button>
+              )}
+              {t.kind !== "appointment" && <Button kind="secondary" onClick={() => onAsk(ask)}>Ask Kin to {t.kind === "refill" ? "order it" : "book it"}</Button>}
+            </div>
+          </Card>
+        ),
+      });
+    });
   if (session.gmail && !order)
     inbox?.medical.forEach((m) =>
       cards.push({
@@ -343,6 +404,7 @@ function Today({
       ),
     });
 
+  cards.sort((a, b) => (a.days ?? 999) - (b.days ?? 999));
   const visible = showAll ? cards : cards.slice(0, 2);
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -753,11 +815,27 @@ function RatingKey() {
 }
 
 function ActionCards({ events }: { events?: AuditEvent[] }) {
-  const ends = events?.filter((e): e is ToolEnd => e.kind === "tool_end" && e.ok && (e.tool === "start_return" || e.tool === "prepare_reimbursement_claim")) ?? [];
+  const ends = events?.filter((e): e is ToolEnd => e.kind === "tool_end" && e.ok && ["start_return", "prepare_reimbursement_claim", "request_refill", "request_appointment"].includes(e.tool)) ?? [];
   return (
     <>
       {ends.map((e) => {
         const o = e.output as any;
+        if (e.tool === "request_refill")
+          return (
+            <Card key={e.id} className="mt-4">
+              <div className="flex flex-wrap gap-2"><Pill tone="good">💊 Refill requested</Pill><Pill tone="caution">Demo</Pill></div>
+              <h3 className="mt-2 text-2xl font-bold">{o.medication}</h3>
+              <p className="mt-1 text-lg">Ready at {o.pharmacy} by <b className="text-urgent">{niceDate(o.ready_by)}</b>. Same medicine and dose.</p>
+            </Card>
+          );
+        if (e.tool === "request_appointment")
+          return (
+            <Card key={e.id} className="mt-4">
+              <div className="flex flex-wrap gap-2"><Pill tone="good">📅 Appointment requested</Pill><Pill tone="caution">Demo</Pill></div>
+              <h3 className="mt-2 text-2xl font-bold">{o.visit}</h3>
+              <p className="mt-1 text-lg">{o.clinic} will call to confirm a time before <b className="text-urgent">{niceDate(o.book_by)}</b>. Asked for: {o.preferences}.</p>
+            </Card>
+          );
         return e.tool === "start_return" ? (
           <Card key={e.id} className="mt-4">
             <div className="flex flex-wrap gap-2"><Pill tone="good">✓ Return started</Pill><Pill tone="caution">Demo</Pill></div>
@@ -896,6 +974,8 @@ function summarize(tool: string, input: any, output: any): string {
     case "propose_purchase": return output?.options ? `${output.options.length} options · waiting for a choice` : output?.error ?? "";
     case "start_return": return output?.return_id ? `${output.return_id} · ${usd(output.refund_usd)} back` : output?.error ?? "";
     case "prepare_reimbursement_claim": return output?.claim_id ? `${usd(output.claim_amount_usd)} claim ready · send by ${output.submit_by}` : output?.error ?? "";
+    case "request_refill": return output?.request_id ? `${output.medication} · ready by ${output.ready_by}` : output?.error ?? "";
+    case "request_appointment": return output?.request_id ? `${output.visit} at ${output.clinic} · requested` : output?.error ?? "";
     case "schedule_reminder": return `${input?.date} · ${input?.title}`;
     case "brief_caregiver": return input?.headline ?? "";
     default: return "";
