@@ -7,6 +7,10 @@ export const usd = (n: number) => n.toLocaleString("en-US", { style: "currency",
 export function niceDate(iso: string) {
   return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
+// Full weekday ("Sunday, Dec 6"), used only by the return-deadline tag; niceDate stays short everywhere else.
+export function longDate(iso: string) {
+  return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+}
 export function daysFromNow(iso: string) {
   return Math.ceil((new Date(iso + "T12:00:00").getTime() - Date.now()) / 86_400_000);
 }
@@ -60,18 +64,25 @@ const TONE: Record<Tone, string> = {
   caution: "bg-caution-bg text-caution",
 };
 export function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?: Tone }) {
-  return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-bold ${TONE[tone]}`}>{children}</span>;
+  return <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1 text-sm font-bold ${TONE[tone]}`}>{children}</span>;
 }
 
 export function KinAvatar({ size = 40 }: { size?: number }) {
+  // Kin mark: two figures leaning into each other (a parent and a family member), in a soft rounded tile.
   return (
-    <span
-      className="inline-flex shrink-0 items-center justify-center rounded-xl bg-brand font-bold text-white"
-      style={{ width: size, height: size, fontSize: size * 0.45 }}
-      aria-hidden
-    >
-      K
-    </span>
+    <svg width={size} height={size} viewBox="0 0 48 48" className="shrink-0" aria-hidden>
+      <defs>
+        <linearGradient id="kin-tile" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#14868e" />
+          <stop offset="1" stopColor="#0b6e75" />
+        </linearGradient>
+      </defs>
+      <rect width="48" height="48" rx="15" fill="url(#kin-tile)" />
+      <circle cx="18.5" cy="17" r="5.5" fill="#ffffff" />
+      <path d="M8 38c0-7.2 4.7-11.5 10.5-11.5S29 30.8 29 38z" fill="#ffffff" />
+      <circle cx="30.5" cy="20" r="4.6" fill="#fbe3cf" />
+      <path d="M21.5 38c0-6.2 4-9.8 9-9.8s9 3.6 9 9.8z" fill="#fbe3cf" />
+    </svg>
   );
 }
 

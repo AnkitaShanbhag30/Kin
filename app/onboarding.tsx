@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Config, Session } from "./session";
+import SilkRiver from "./components/SilkRiver";
 import { Button, Card, KinAvatar, Pill } from "./ui";
 
 type InquiryStatus = { inquiry_id: string; status: string; verified: boolean; environment: string } | { error: string };
@@ -9,31 +10,73 @@ type InquiryStatus = { inquiry_id: string; status: string; verified: boolean; en
 export function Onboarding({ session, update, config }: { session: Session; update: (s: Partial<Session>) => void; config?: Config }) {
   const steps = ["welcome", "identity", "connect"] as const;
   const idx = steps.indexOf(session.step as (typeof steps)[number]);
+  const labels = ["Sign in", "Confirm it's you", "Connect"];
   return (
-    <div className="min-h-screen bg-soft">
-      <div className="mx-auto flex max-w-xl flex-col px-4 py-10">
-        <div className="mb-8 flex items-center gap-3">
-          <KinAvatar size={44} />
-          <span className="text-2xl font-bold">Kin</span>
+    <div className="relative min-h-screen overflow-hidden bg-[#fbfaf7]">
+      <div className="relative z-[1] grid min-h-screen md:grid-cols-2">
+        {/* Left half: flush, edge-to-edge Silk River gradient with the photo floating on it. Top band on phones. */}
+        <div className="relative flex items-center justify-center overflow-hidden px-6 py-8 sm:px-10 md:min-h-screen md:px-12 lg:px-16">
+          <SilkRiver style={{ position: "absolute", inset: 0, zIndex: 0 }} {...SILK_COLORS} />
+          <div className="relative z-[1] h-56 w-full max-w-md overflow-hidden rounded-[2rem] shadow-[0_24px_60px_-28px_rgba(16,24,40,0.4)] sm:h-72 md:h-[min(72vh,640px)]">
+            <img
+              src="/images/onboarding-hug.jpg"
+              alt="An older woman and her granddaughter hugging and laughing outdoors"
+              className="h-full w-full object-cover object-[50%_30%]"
+            />
+          </div>
         </div>
-        <ol className="mb-6 flex gap-2" aria-label="Setup progress">
-          {["Sign in", "Confirm it's you", "Connect"].map((label, i) => (
-            <li key={label} className={`flex-1 rounded-full py-1.5 text-center text-sm font-bold ${i <= idx ? "bg-ink text-white" : "bg-white text-muted"}`}>
-              {i + 1}. {label}
-            </li>
-          ))}
-        </ol>
-        {session.step === "welcome" && <Welcome session={session} onNext={() => update({ step: "identity" })} />}
-        {session.step === "identity" && <IdentityStep session={session} update={update} config={config} />}
-        {session.step === "connect" && <ConnectStep session={session} update={update} />}
+
+        {/* Right half: logo, progress, and the step card. */}
+        <div className="flex w-full items-center justify-center px-4 py-8 sm:px-6 md:px-10 lg:px-16">
+        <div className="w-full max-w-lg">
+          <div className="mb-6 flex items-center gap-3">
+            <KinAvatar size={44} />
+            <span className="text-2xl font-bold tracking-tight">Kin</span>
+          </div>
+
+          <div className="mb-6" role="group" aria-label="Setup progress">
+            <div className="mb-2 flex items-baseline justify-between text-sm">
+              <span className="font-bold text-ink">{labels[idx]}</span>
+              <span className="text-muted">Step {idx + 1} of {labels.length}</span>
+            </div>
+            <div
+              className="h-2 w-full overflow-hidden rounded-full bg-white/70"
+              role="progressbar"
+              aria-valuemin={1}
+              aria-valuemax={labels.length}
+              aria-valuenow={idx + 1}
+              aria-valuetext={`Step ${idx + 1} of ${labels.length}: ${labels[idx]}`}
+            >
+              <div className="h-full rounded-full bg-brand transition-[width] duration-700 ease-out" style={{ width: `${((idx + 1) / labels.length) * 100}%` }} />
+            </div>
+            <ol className="mt-2 grid grid-cols-3 text-xs text-muted sm:text-sm">
+              {labels.map((label, i) => (
+                <li key={label} className={`${i === 1 ? "text-center" : i === 2 ? "text-right" : ""} ${i <= idx ? "font-bold text-ink" : ""}`}>
+                  {label}
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {session.step === "welcome" && <Welcome session={session} onNext={() => update({ step: "identity" })} />}
+          {session.step === "identity" && <IdentityStep session={session} update={update} config={config} />}
+          {session.step === "connect" && <ConnectStep session={session} update={update} />}
+        </div>
+        </div>
       </div>
     </div>
   );
 }
 
+// Light pastel palette for the left-half background; waves still clearly visible (props only; shader untouched).
+const SILK_COLORS = { base: "#F8F6F2", soft: "#E1ECF8", main: "#C3DAF2", accent: "#F7DCC6", deep: "#A6C7EC", saturation: 110 };
+
+// Softer, frosted card used by every step.
+const STEP_CARD = "rounded-[2rem] border-white/70 bg-white/80 p-6 shadow-[0_24px_60px_-32px_rgba(16,24,40,0.3)] backdrop-blur-xl sm:p-8";
+
 function Welcome({ session, onNext }: { session: Session; onNext: () => void }) {
   return (
-    <Card className="p-8">
+    <Card className={STEP_CARD}>
       <h1 className="text-3xl font-bold leading-tight">Help buying health things, with your family in the loop.</h1>
       <p className="mt-3 text-lg text-muted">Kin checks your insurance, finds what suits you, buys it, and keeps track of returns.</p>
       <label className="mt-8 block text-base font-bold" htmlFor="email">Email</label>
@@ -70,7 +113,7 @@ function IdentityStep({ session, update, config }: { session: Session; update: (
 
   const verified = session.identity;
   return (
-    <Card className="p-8">
+    <Card className={STEP_CARD}>
       <h1 className="text-3xl font-bold">Confirm it&apos;s you</h1>
       <p className="mt-3 text-lg text-muted">
         Kin can spend money for you, so we check your identity once with Persona. Kin checks it again before every purchase.
@@ -118,7 +161,7 @@ function IdentityStep({ session, update, config }: { session: Session; update: (
 
 function ConnectStep({ session, update }: { session: Session; update: (s: Partial<Session>) => void }) {
   return (
-    <Card className="p-8">
+    <Card className={STEP_CARD}>
       <h1 className="text-3xl font-bold">Connect your accounts</h1>
       <p className="mt-3 text-lg text-muted">So Kin knows what your plan covers, and can watch for deliveries and return dates.</p>
 
