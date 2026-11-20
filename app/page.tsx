@@ -10,7 +10,7 @@ type Order = {
   order_id: string; merchant: string; name: string; real_retailer: string; product_url: string; total_usd: number;
   payment_method: string; estimated_delivery: string; caregiver_verification: { verified: boolean; provider: string; status?: string }; return_by: string; otc_reimbursement_claim_by: string; return_window_days: number;
 };
-type Cost = { name: string; route: string; list_price_usd: number; plan_pays_usd: number; family_pays_usd: number; cited_content_ids: string[] };
+type Cost = { name: string; route: string; list_price_usd: number | null; plan_pays_usd: number | null; family_pays_usd: number; cited_content_ids: string[] };
 type Reminder = { date: string; title: string; details: string };
 
 const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -148,8 +148,8 @@ export default function Home() {
                       <span className="text-stone-500">{ROUTE_LABEL[c.route] ?? c.route}</span>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                      <Stat label="List price" value={usd(c.list_price_usd)} />
-                      <Stat label="Plan pays" value={`− ${usd(c.plan_pays_usd)}`} tone="green" />
+                      <Stat label="List price" value={c.list_price_usd == null ? "—" : usd(c.list_price_usd)} />
+                      <Stat label={c.plan_pays_usd == null ? "Copay basis" : "Plan pays"} value={c.plan_pays_usd == null ? "per ear" : `− ${usd(c.plan_pays_usd)}`} tone="green" />
                       <Stat label="Family pays" value={usd(c.family_pays_usd)} strong />
                     </div>
                     {c.cited_content_ids.length > 0 && (
@@ -358,6 +358,21 @@ function Markdown({ text, sources, onOpen }: { text: string; sources: Map<string
     <div className="space-y-2 text-[15px] leading-relaxed">
       {text.split(/\n{2,}/).map((block, i) => {
         const lines = block.split("\n");
+        const tableAt = lines.findIndex((l, j) => l.trim().startsWith("|") && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[j + 1] ?? ""));
+        if (tableAt >= 0) {
+          const cells = (l: string) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+          const head = cells(lines[tableAt]);
+          const body = lines.slice(tableAt + 2).filter((l) => l.trim().startsWith("|")).map(cells);
+          return (
+            <div key={i} className="space-y-2">
+              {tableAt > 0 && <p>{inline(lines.slice(0, tableAt).join(" "))}</p>}
+              <table className="w-full text-sm">
+                <thead><tr>{head.map((h, j) => <th key={j} className="border-b border-emerald-200 py-1 pr-3 text-left font-medium">{inline(h)}</th>)}</tr></thead>
+                <tbody>{body.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k} className="border-b border-emerald-100 py-1 pr-3 align-top">{inline(c)}</td>)}</tr>)}</tbody>
+              </table>
+            </div>
+          );
+        }
         if (lines.every((l) => /^\s*[-*] /.test(l)))
           return <ul key={i} className="list-disc space-y-1 pl-5">{lines.map((l, j) => <li key={j}>{inline(l.replace(/^\s*[-*] /, ""))}</li>)}</ul>;
         return <p key={i}>{lines.map((l, j) => <span key={j}>{j > 0 && <br />}{inline(l.replace(/^#+\s*/, ""))}</span>)}</p>;

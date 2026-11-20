@@ -45,7 +45,7 @@ export const TOOL_LABELS: Record<string, string> = {
   search_products: "Searched hearing aids that fit Ruth's needs",
   check_fda_status: "Checked the device's FDA status",
   calculate_cost: "Worked out what the family actually pays",
-  place_order: "Verified Priya with Persona and placed the order (demo merchant)",
+  place_order: "Checked caregiver identity and placed the order (demo merchant)",
   schedule_reminder: "Scheduled a reminder",
   brief_caregiver: "Sent Priya a summary",
 };

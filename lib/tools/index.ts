@@ -203,18 +203,20 @@ export async function runTool(name: string, input: Record<string, any>, state: R
         familyPays = perEar * ears;
         planPays = Math.max(list - familyPays, 0);
       }
+      const rx = input.route === "prescription_benefit";
       return {
         ok: true,
-        sources: [catalogSource(p)],
+        sources: rx ? [] : [catalogSource(p)],
         output: {
-          sku: p.sku,
-          name: p.name,
+          sku: rx ? null : p.sku,
+          name: rx ? "Plan prescription hearing aids (NationsHearing network, fitted)" : p.name,
           route: input.route,
-          list_price_usd: money(list),
-          plan_pays_usd: money(planPays),
+          list_price_usd: rx ? null : money(list),
+          plan_pays_usd: rx ? null : money(planPays),
           family_pays_usd: money(familyPays),
           ears,
           cited_content_ids: cited,
+          ...(rx && { note: "Copay tier for a network prescription aid; not the searched product." }),
         },
       };
     }
