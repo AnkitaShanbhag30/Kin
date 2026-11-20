@@ -7,7 +7,14 @@ export type Source = {
 };
 
 export type AuditEvent =
-  | { kind: "start"; id: string; ts: string; prompt: string; model: string; context_provider: string }
+  | {
+      kind: "start";
+      id: string;
+      ts: string;
+      prompt: string;
+      model: string;
+      integrations: { context: string; identity: string; analytics: string };
+    }
   | { kind: "note"; id: string; ts: string; text: string }
   | { kind: "tool_start"; id: string; ts: string; step: number; tool: string; label: string; input: unknown }
   | {
@@ -38,7 +45,7 @@ export const TOOL_LABELS: Record<string, string> = {
   search_products: "Searched hearing aids that fit Ruth's needs",
   check_fda_status: "Checked the device's FDA status",
   calculate_cost: "Worked out what the family actually pays",
-  place_order: "Placed the order (demo merchant)",
+  place_order: "Verified Priya with Persona and placed the order (demo merchant)",
   schedule_reminder: "Scheduled a reminder",
   brief_caregiver: "Sent Priya a summary",
 };

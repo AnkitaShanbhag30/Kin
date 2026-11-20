@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { type Emit, newId, now, TOOL_LABELS } from "./audit";
 import { newRunState, runTool, TOOLS } from "./tools";
+import { analyticsProvider } from "./analytics";
+import { identityProvider } from "./identity";
 import { contextProvider } from "./tools/senso";
 
 export const MODEL = process.env.KIN_MODEL ?? "claude-opus-5-5";
@@ -12,6 +14,7 @@ Your job is to finish the task end to end: understand Ruth's coverage and prefer
 
 How you work:
 - Ground every coverage, cost, policy, FDA, and preference claim in search_trusted_context results. Never rely on memory for plan terms. If context is missing, say so.
+- Confirm the chosen product's listing details (style, price, return window) in trusted context too.
 - Respect Ruth's comfort constraints from her profile; they matter more than features.
 - Compare coverage routes (OTC allowance vs prescription benefit vs paying out of pocket) with calculate_cost before choosing.
 - Run check_fda_status on the product before place_order. Do not buy PSAPs or unverified devices.
@@ -27,7 +30,9 @@ export async function runAgent(prompt: string, emit: Emit) {
   const started = Date.now();
   let step = 0;
 
-  emit({ kind: "start", id: newId(), ts: now(), prompt, model: MODEL, context_provider: contextProvider() });
+  emit({ kind: "start", id: newId(), ts: now(), prompt, model: MODEL,
+    integrations: { context: contextProvider(), identity: identityProvider(), analytics: analyticsProvider() },
+  });
 
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: prompt }];
 

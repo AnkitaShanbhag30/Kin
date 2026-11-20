@@ -42,19 +42,28 @@ The right-hand **Audit trail** shows every step live: the agent's progress notes
 - **FDA check** works against FDA OTC-rule categories recorded in the catalog. It is not a live FDA database lookup.
 - **Privacy:** the agent sees a plan name, a hearing-loss category, and comfort preferences Ruth agreed to share. It sees no medical records.
 
-## Stack / tools used
+## Sponsor tools
+
+| Sponsor | Role in Kin | Where |
+|---|---|---|
+| **Senso** (context layer) | The single source of trusted context: plan benefits, Medicare rules, FDA OTC rule, retailer return policies, merchant shipping, Ruth's care profile, **and every product listing**. Retrieved with `POST /org/search/context`; each claim cites a chunk (`content_chunk_id`) the caregiver can open in the trail. | `lib/tools/senso.ts`, `scripts/seed-senso.ts` |
+| **Persona** (identity) | Before the agent spends money, `place_order` re-checks that the human caregiver behind the agent completed a Persona verification inquiry. Unverified → order refused. | `lib/identity.ts` |
+| **Amplitude** (analytics) | Every run streams product-analytics events: `kin_run_started`, `kin_tool_called` (tool, ok, latency, source count and provider), `kin_order_placed`, `kin_run_completed`, `kin_run_error`. That gives a funnel of where caregiver tasks succeed or stall. | `lib/analytics.ts` |
+
+Each integration degrades gracefully when its key is missing, and the header pills show what's live (`context: Senso | local fallback`, `identity: Persona | stub`, `analytics: Amplitude | off`).
+
+## Stack
 
 - **Claude** (`claude-opus-5-5`, Anthropic TypeScript SDK): manual tool-use loop with adaptive thinking and progress updates (`display: "updates"`), which become the "thoughts" in the audit trail. Server-side refusal fallback is enabled.
-- **Senso context layer:** trusted context retrieval (`POST /org/search/context`) with citable `content_id`s. Seeded from `data/kb/*.md` via `POST /org/kb/raw`.
 - **Next.js 15 + Tailwind**, deployable to Vercel. The agent streams NDJSON audit events to the UI.
-- Seams for later sponsors: `lib/memory.ts` (Cognee: remember trial reactions across sessions) and `lib/identity.ts` (Persona: verify the caregiver before spending).
+- Seam for later: `lib/memory.ts` (Cognee: remember Ruth's trial reactions across sessions).
 
 ## Run it
 
 ```bash
 npm install
-cp .env.example .env.local   # add ANTHROPIC_API_KEY and SENSO_API_KEY
-npm run seed                 # push data/kb into Senso (once)
+cp .env.example .env.local   # add ANTHROPIC_API_KEY, SENSO_API_KEY, PERSONA_*, AMPLITUDE_API_KEY
+npm run seed                 # push data/kb + product listings into Senso (once)
 npm run dev                  # http://localhost:3000
 npm run smoke                # headless run of the demo prompt + checks
 ```

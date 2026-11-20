@@ -8,7 +8,7 @@ type ToolEnd = Extract<AuditEvent, { kind: "tool_end" }>;
 type ToolStart = Extract<AuditEvent, { kind: "tool_start" }>;
 type Order = {
   order_id: string; merchant: string; name: string; real_retailer: string; product_url: string; total_usd: number;
-  payment_method: string; estimated_delivery: string; return_by: string; otc_reimbursement_claim_by: string; return_window_days: number;
+  payment_method: string; estimated_delivery: string; caregiver_verification: { verified: boolean; provider: string; status?: string }; return_by: string; otc_reimbursement_claim_by: string; return_window_days: number;
 };
 type Cost = { name: string; route: string; list_price_usd: number; plan_pays_usd: number; family_pays_usd: number; cited_content_ids: string[] };
 type Reminder = { date: string; title: string; details: string };
@@ -91,8 +91,14 @@ export default function Home() {
           {view.start && (
             <div className="flex gap-2 text-xs">
               <Pill>{view.start.model}</Pill>
-              <Pill tone={view.start.context_provider === "senso" ? "green" : "amber"}>
-                context: {view.start.context_provider === "senso" ? "Senso" : "local fallback"}
+              <Pill tone={view.start.integrations.context === "senso" ? "green" : "amber"}>
+                context: {view.start.integrations.context === "senso" ? "Senso" : "local fallback"}
+              </Pill>
+              <Pill tone={view.start.integrations.identity === "persona" ? "green" : "amber"}>
+                identity: {view.start.integrations.identity === "persona" ? "Persona" : "stub"}
+              </Pill>
+              <Pill tone={view.start.integrations.analytics === "amplitude" ? "green" : "stone"}>
+                analytics: {view.start.integrations.analytics === "amplitude" ? "Amplitude" : "off"}
               </Pill>
             </div>
           )}
@@ -176,6 +182,10 @@ export default function Home() {
                 <Row k="Arrives" v={view.order.estimated_delivery} />
                 <Row k="Return by" v={<b>{view.order.return_by}</b>} />
                 <Row k="Claim OTC reimbursement by" v={view.order.otc_reimbursement_claim_by} />
+                <Row
+                  k="Caregiver identity"
+                  v={view.order.caregiver_verification.provider === "persona" ? `Verified by Persona (${view.order.caregiver_verification.status})` : "Not verified (Persona not configured)"}
+                />
               </dl>
             </Card>
           )}

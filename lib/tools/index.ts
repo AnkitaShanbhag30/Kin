@@ -227,6 +227,8 @@ export async function runTool(name: string, input: Record<string, any>, state: R
       if (verdict === "block")
         return { ok: false, sources: [], output: { error: "Refused: product is not an FDA hearing aid (PSAP)." } };
       const caregiver = await verifyCaregiver(input.caregiver_name);
+      if (!caregiver.verified)
+        return { ok: false, sources: [], output: { error: "Refused: caregiver identity is not verified with Persona.", caregiver } };
       const today = new Date();
       const delivery = day(today, 3);
       const order = {

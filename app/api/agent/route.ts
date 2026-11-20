@@ -1,4 +1,5 @@
 import { runAgent } from "@/lib/agent";
+import { createRunTracker } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -11,7 +12,12 @@ export async function POST(req: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      await runAgent(prompt, (e) => controller.enqueue(encoder.encode(JSON.stringify(e) + "\n")));
+      const tracker = createRunTracker();
+      await runAgent(prompt, (e) => {
+        tracker.track(e);
+        controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
+      });
+      await tracker.flush();
       controller.close();
     },
   });
