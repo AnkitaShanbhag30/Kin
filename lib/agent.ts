@@ -14,6 +14,8 @@ type RunOpts = {
   history?: { role: "user" | "assistant"; text: string }[];
   user?: { name: string; address: string; plan: string };
   caregiver?: { name: string; relation: string } | null;
+  approvedPurchase?: { sku: string; approvedBy: string };
+  attachments?: { name: string; media_type: string; data: string }[];
 };
 
 function systemPrompt(o: RunOpts) {
@@ -23,7 +25,11 @@ Her shipping address is ${user.address}. Her insurance is ${user.plan}.
 ${o.caregiver ? `Her caregiver ${o.caregiver.name} (her ${o.caregiver.relation}) is in the family chat.` : "No caregiver has joined the family chat yet; do not call brief_caregiver."}
 Gmail is ${o.gmailConnected ? "connected: use search_email for deliveries, receipts and medical messages" : "not connected"}.
 
-When she asks you to buy something, finish the task end to end: understand her coverage and preferences, choose a product she will actually wear, work out the real out-of-pocket cost, place the order, set up the reminders she needs during the trial and return window${o.caregiver ? ", and update the family chat" : ""}.
+${o.approvedPurchase
+  ? `APPROVED: ${o.approvedPurchase.approvedBy} approved buying sku "${o.approvedPurchase.sku}". Now: run check_fda_status on it, place_order, schedule the reminders, prepare_reimbursement_claim if the OTC allowance applies (retrieve the plan rule to cite)${o.caregiver ? ", then brief_caregiver" : ""}.`
+  : `When she asks for help buying something: understand her coverage and preferences, choose ONE product she will actually wear, work out the real out-of-pocket cost, then call propose_purchase and stop. She (or her caregiver) approves the purchase in the app; you never buy without that approval.`}
+When she wants to return something: find the delivery in her email, check the return window in trusted context, and call start_return.
+If she shares a photo or document (an audiogram, a receipt, a letter), read it and use it.
 
 How you work:
 - Ground every coverage, cost, policy, FDA, and preference claim in search_trusted_context (or search_email) results. Never rely on memory for plan terms. If context is missing, say so.
@@ -32,7 +38,7 @@ How you work:
 - Compare coverage routes (OTC allowance vs prescription benefit vs paying out of pocket) with calculate_cost before choosing.
 - Run check_fda_status before place_order. Do not buy PSAPs or unverified devices.
 - Checkout is a simulated demo store; say so plainly. If checkout is refused because her identity is not verified, stop and say so.
-- After ordering, schedule reminders for: a comfort check-in about 10 days after delivery, a keep-or-return decision about 5 days before the return deadline, and the OTC reimbursement claim deadline if applicable.
+- After an approved order, schedule reminders for: a comfort check-in about 10 days after delivery, a keep-or-return decision about 5 days before the return deadline, and the OTC reimbursement claim deadline if applicable.
 - When asked about returns, find the delivery date in her email and the return window in trusted context, then give the exact return-by date.
 
 How you talk to her (this matters):
@@ -46,7 +52,11 @@ Today's date is ${new Date().toISOString().slice(0, 10)}.`;
 
 export async function runAgent(prompt: string, emit: Emit, opts: RunOpts = {}) {
   const client = new Anthropic();
-  const state = newRunState({ personaInquiryId: opts.personaInquiryId, gmailConnected: opts.gmailConnected });
+  const state = newRunState({
+    personaInquiryId: opts.personaInquiryId,
+    gmailConnected: opts.gmailConnected,
+    approved: opts.approvedPurchase,
+  });
   const started = Date.now();
   let step = 0;
 
@@ -56,7 +66,17 @@ export async function runAgent(prompt: string, emit: Emit, opts: RunOpts = {}) {
 
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     ...(opts.history ?? []).filter((m) => m.text.trim()).map((m) => ({ role: m.role, content: m.text })),
-    { role: "user", content: prompt },
+    {
+      role: "user",
+      content: [
+        ...(opts.attachments ?? []).map((f): Anthropic.Beta.BetaContentBlockParam =>
+          f.media_type === "application/pdf"
+            ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data }, title: f.name }
+            : { type: "image", source: { type: "base64", media_type: f.media_type as "image/jpeg", data: f.data } },
+        ),
+        { type: "text", text: prompt },
+      ],
+    },
   ];
   const system = systemPrompt(opts);
 

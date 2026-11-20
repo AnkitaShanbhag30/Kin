@@ -5,13 +5,22 @@ import type { AuditEvent, Source } from "@/lib/audit";
 import { DEMO_CAREGIVER, DEMO_PROMPT } from "@/lib/demo";
 import type { Config, Session } from "./session";
 import {
-  Button, Card, KinAvatar, Markdown, PersonAvatar, Pill, SourceChip, SourceDrawer,
+  Button, Card, KinAvatar, Markdown, PersonAvatar, Pill, ProductImage, SourceChip, SourceDrawer,
   daysFromNow, download, ics, niceDate, usd,
 } from "./ui";
 
 type ChatId = "kin" | "family";
 type View = "today" | ChatId;
-type Msg = { id: string; chat: ChatId; from: "user" | "kin" | "caregiver" | "system"; text: string; runId?: string; headline?: string };
+type Msg = {
+  id: string; chat: ChatId; from: "user" | "kin" | "caregiver" | "system"; text: string;
+  runId?: string; headline?: string; files?: string[]; proposalRunId?: string;
+};
+type Attachment = { name: string; media_type: string; data: string };
+type Proposal = {
+  sku: string; name: string; style: string; retailer: string; product_url: string; price_pair_usd: number;
+  return_window_days: number; reason: string; route: string; family_pays_usd: number; plan_pays_usd: number;
+};
+type AskExtra = { approvedPurchase?: { sku: string; approvedBy: string }; from?: "user" | "caregiver"; attachments?: Attachment[] };
 type ToolEnd = Extract<AuditEvent, { kind: "tool_end" }>;
 type Order = {
   order_id: string; name: string; real_retailer: string; product_url: string; total_usd: number; sku: string;
@@ -45,7 +54,10 @@ export function KinApp({
   const push = (m: Omit<Msg, "id">) => setMessages((prev) => [...prev, { ...m, id: uid() }]);
 
   // Family chat history isn't persisted; reseed the join messages for an existing caregiver.
+  const seeded = useRef(false);
   useEffect(() => {
+    if (seeded.current) return;
+    seeded.current = true;
     if (session.caregiver?.joined && !messages.some((m) => m.chat === "family"))
       push({ chat: "family", from: "system", text: `${session.caregiver.firstName} is in the family chat.` });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,13 +75,13 @@ export function KinApp({
     return { sources, order, chosen, reminders };
   }, [all]);
 
-  async function ask(text: string, chat: ChatId = "kin") {
+  async function ask(text: string, chat: ChatId = "kin", extra: AskExtra = {}) {
     if (running || !text.trim()) return;
     setView(chat);
     const history = messages
       .filter((m) => m.chat === chat && (m.from === "user" || m.from === "kin"))
       .map((m) => ({ role: m.from === "user" ? ("user" as const) : ("assistant" as const), text: m.text }));
-    push({ chat, from: "user", text });
+    push({ chat, from: extra.from ?? "user", text, files: extra.attachments?.map((f) => f.name) });
     const runId = uid();
     setRuns((r) => ({ ...r, [runId]: [] }));
     setRunning(runId);
@@ -101,6 +113,8 @@ export function KinApp({
           gmailConnected: session.gmail,
           user: { name: session.user.name, address: session.user.address, plan: session.user.plan },
           caregiver: session.caregiver?.joined ? { name: session.caregiver.name, relation: session.caregiver.relation } : null,
+          approvedPurchase: extra.approvedPurchase,
+          attachments: extra.attachments,
         }),
       });
       const reader = res.body!.getReader();
@@ -120,6 +134,22 @@ export function KinApp({
       if (!gotFinal && !controller.signal.aborted) push({ chat, from: "kin", text: "I finished. You can see every step in Activity.", runId });
       setRunning(null);
     }
+  }
+
+  function approve(p: Proposal, by: "user" | "caregiver") {
+    const name = by === "user" ? session.user.firstName : session.caregiver?.firstName ?? "Family";
+    ask(
+      by === "user" ? `Yes, please buy the ${p.name}.` : `Approved. Go ahead and buy the ${p.name} for Mom.`,
+      by === "user" ? "kin" : "family",
+      { approvedPurchase: { sku: p.sku, approvedBy: name }, from: by },
+    );
+  }
+
+  function shareWithFamily(runId: string) {
+    if (!session.caregiver?.joined) return setInviteOpen(true);
+    push({ chat: "family", from: "user", text: `${session.caregiver.firstName}, can you look at this and place the order for me?` });
+    push({ chat: "family", from: "kin", text: "Here's what I suggested. Either of you can approve it.", proposalRunId: runId });
+    setView("family");
   }
 
   function invite() {
@@ -199,10 +229,11 @@ export function KinApp({
           {view !== "today" && (
             <Chat
               chat={view} session={session} messages={messages.filter((m) => m.chat === view)} runs={runs} running={running}
-              derived={derived} onAsk={(t) => ask(t, view)} onOpenSource={setOpenSource}
+              derived={derived} onAsk={(t, extra) => ask(t, view, extra)} onOpenSource={setOpenSource}
               onSteps={(runId) => setPanel({ tab: "steps", runId })} onStop={() => ac.current?.abort()}
               onInvite={() => setInviteOpen(true)}
               onPostToFamily={(t) => push({ chat: "family", from: "user", text: t })}
+              onApprove={approve} onShare={shareWithFamily}
             />
           )}
         </div>
@@ -373,14 +404,45 @@ function OrderCard({ order, chosen, onSteps }: { order: Order; chosen?: Cost; on
 /* ---------------- Chat ---------------- */
 
 function Chat({
-  chat, session, messages, runs, running, derived, onAsk, onOpenSource, onSteps, onStop, onInvite, onPostToFamily,
+  chat, session, messages, runs, running, derived, onAsk, onOpenSource, onSteps, onStop, onInvite, onPostToFamily, onApprove, onShare,
 }: {
   chat: ChatId; session: Session; messages: Msg[]; runs: Record<string, AuditEvent[]>; running: string | null;
   derived: { sources: Map<string, Source>; order?: Order; chosen?: Cost };
-  onAsk: (t: string) => void; onOpenSource: (s: Source) => void; onSteps: (runId: string) => void; onStop: () => void;
+  onAsk: (t: string, extra?: AskExtra) => void; onOpenSource: (s: Source) => void; onSteps: (runId: string) => void; onStop: () => void;
   onInvite: () => void; onPostToFamily: (t: string) => void;
+  onApprove: (p: Proposal, by: "user" | "caregiver") => void; onShare: (runId: string) => void;
 }) {
   const [draft, setDraft] = useState("");
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [listening, setListening] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const ordered = new Set(Object.values(runs).flat().filter((e): e is ToolEnd => e.kind === "tool_end" && e.tool === "place_order" && e.ok).map((e) => (e.output as Order).sku));
+
+  async function addFiles(list: FileList | null) {
+    for (const f of Array.from(list ?? [])) {
+      if (!/^image\/(png|jpeg|gif|webp)$|^application\/pdf$/.test(f.type) || f.size > 8_000_000) continue;
+      const data = await new Promise<string>((res) => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result).split(",")[1]);
+        r.readAsDataURL(f);
+      });
+      setFiles((prev) => [...prev, { name: f.name, media_type: f.type, data }]);
+    }
+  }
+
+  // Browser speech recognition (Chrome/Safari); no key needed.
+  function dictate() {
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SR) return alert("Voice input isn't supported in this browser. Try Chrome or Safari.");
+    const rec = new SR();
+    rec.lang = "en-US";
+    rec.interimResults = false;
+    rec.onresult = (e: any) => setDraft((d) => (d ? d + " " : "") + e.results[0][0].transcript);
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    setListening(true);
+    rec.start();
+  }
   const bottom = useRef<HTMLDivElement>(null);
   const runEvents = running ? runs[running] ?? [] : [];
   useEffect(() => {
@@ -397,9 +459,12 @@ function Chat({
     );
 
   const send = () => {
-    const t = draft.trim();
+    const t = draft.trim() || (files.length ? "Here's a file for you to look at." : "");
     if (!t) return;
     setDraft("");
+    const attachments = files;
+    setFiles([]);
+    if (attachments.length) return onAsk(t, { attachments });
     // In the family chat, messages go to the family; start with "Kin" to ask the agent.
     if (chat === "family" && !/^@?kin\b/i.test(t)) onPostToFamily(t);
     else onAsk(t.replace(/^@?kin[,:]?\s*/i, "") || t);
@@ -434,10 +499,17 @@ function Chat({
 
         {messages.map((m) => {
           if (m.from === "system") return <p key={m.id} className="text-center text-base text-muted">{m.text}</p>;
-          if (m.from === "user")
-            return (
+          if (m.from === "user" || (m.from === "caregiver" && m.text.startsWith("Approved.")))
+            return m.from === "caregiver" ? (
               <div key={m.id} className="flex justify-end">
-                <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-5 py-3 text-lg text-white">{m.text}</div>
+                <div className="max-w-[85%] rounded-2xl rounded-br-md bg-caution-bg px-5 py-3 text-lg"><b>{session.caregiver?.firstName}:</b> {m.text}</div>
+              </div>
+            ) : (
+              <div key={m.id} className="flex justify-end">
+                <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-5 py-3 text-lg text-white">
+                  {m.files?.map((f) => <div key={f} className="mb-1 text-base opacity-80">📎 {f}</div>)}
+                  {m.text}
+                </div>
               </div>
             );
           const isCaregiver = m.from === "caregiver";
@@ -454,7 +526,23 @@ function Chat({
                 <div className="text-lg">
                   <Markdown text={m.text} sources={derived.sources} onOpen={onOpenSource} />
                 </div>
-                {order && chat === "kin" && (
+                {m.proposalRunId && proposalInRun(runs[m.proposalRunId]) && (
+                  <div className="mt-4">
+                    <ProposalCard p={proposalInRun(runs[m.proposalRunId])!} done={ordered.has(proposalInRun(runs[m.proposalRunId])!.sku)}
+                      busy={!!running} actions={[{ label: `Approve as ${session.caregiver?.firstName} (demo)`, onClick: (p) => onApprove(p, "caregiver") }]} />
+                  </div>
+                )}
+                {m.runId && !order && proposalInRun(runs[m.runId]) && chat === "kin" && (
+                  <div className="mt-4">
+                    <ProposalCard p={proposalInRun(runs[m.runId])!} done={ordered.has(proposalInRun(runs[m.runId])!.sku)} busy={!!running}
+                      actions={[
+                        { label: "Buy it", onClick: (p) => onApprove(p, "user") },
+                        { label: session.caregiver?.joined ? `Ask ${session.caregiver.firstName} to buy it` : "Ask family to buy it", onClick: () => onShare(m.runId!), secondary: true },
+                      ]} />
+                  </div>
+                )}
+                {m.runId && <ActionCards events={runs[m.runId]} />}
+                {order && (
                   <div className="mt-4">
                     <OrderCard order={order} chosen={derived.order?.order_id === order.order_id ? derived.chosen : undefined} />
                   </div>
@@ -491,7 +579,20 @@ function Chat({
       </div>
 
       <form className="sticky bottom-0 bg-white pb-4 pt-2" onSubmit={(e) => { e.preventDefault(); send(); }}>
+        {files.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {files.map((f, i) => (
+              <span key={i} className="inline-flex items-center gap-2 rounded-full bg-brand-bg px-3 py-1 font-bold text-brand">
+                📎 {f.name}
+                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex items-end gap-2 rounded-3xl border border-line bg-soft p-2">
+          <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+          <button type="button" onClick={() => fileInput.current?.click()} aria-label="Add a photo or document"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl hover:bg-line">＋</button>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -500,10 +601,81 @@ function Chat({
             placeholder={chat === "family" ? `Message your family (start with "Kin" to ask Kin)` : "Message Kin"}
             className="max-h-40 flex-1 resize-none bg-transparent px-3 py-2 text-lg outline-none"
           />
-          <Button type="submit" disabled={!!running || !draft.trim()}>Send</Button>
+          <button type="button" onClick={dictate} aria-label="Speak instead of typing"
+            className={`flex h-12 shrink-0 items-center gap-2 rounded-full px-4 font-bold ${listening ? "bg-urgent text-white" : "hover:bg-line"}`}>
+            🎤 {listening ? "Listening…" : "Speak"}
+          </button>
+          <Button type="submit" disabled={!!running || (!draft.trim() && !files.length)}>Send</Button>
         </div>
       </form>
     </div>
+  );
+}
+
+function proposalInRun(events?: AuditEvent[]) {
+  return events?.find((e): e is ToolEnd => e.kind === "tool_end" && e.tool === "propose_purchase" && e.ok)?.output as Proposal | undefined;
+}
+
+function ProposalCard({ p, actions, done, busy }: {
+  p: Proposal; done: boolean; busy: boolean;
+  actions: { label: string; onClick: (p: Proposal) => void; secondary?: boolean }[];
+}) {
+  return (
+    <Card>
+      <div className="flex gap-4">
+        <ProductImage sku={p.sku} style={p.style} />
+        <div className="min-w-0">
+          <Pill tone="brand">Kin suggests</Pill>
+          <h3 className="mt-2 text-2xl font-bold leading-tight">{p.name}</h3>
+          <p className="mt-1 text-lg">{p.reason}</p>
+        </div>
+      </div>
+      <div className="mt-4 rounded-xl bg-good-bg p-4">
+        <div className="text-3xl font-bold text-good">You pay {usd(p.family_pays_usd)}</div>
+        {p.plan_pays_usd > 0 && <div className="text-lg text-good">Aetna pays you back {usd(p.plan_pays_usd)} of the {usd(p.price_pair_usd)} price.</div>}
+      </div>
+      <ul className="mt-3 space-y-1 text-lg">
+        <li>✓ Real FDA hearing aid</li>
+        <li>✓ {p.return_window_days} days to return it at {p.retailer}</li>
+      </ul>
+      {done ? (
+        <div className="mt-4"><Pill tone="good">✓ Approved and ordered</Pill></div>
+      ) : (
+        <div className="mt-5 flex flex-wrap gap-3">
+          {actions.map((a) => (
+            <Button key={a.label} kind={a.secondary ? "secondary" : "primary"} disabled={busy} onClick={() => a.onClick(p)}>{a.label}</Button>
+          ))}
+        </div>
+      )}
+      <p className="mt-3 text-sm text-muted">Nothing is bought until someone taps approve. Demo store: no real purchase.</p>
+    </Card>
+  );
+}
+
+function ActionCards({ events }: { events?: AuditEvent[] }) {
+  const ends = events?.filter((e): e is ToolEnd => e.kind === "tool_end" && e.ok && (e.tool === "start_return" || e.tool === "prepare_reimbursement_claim")) ?? [];
+  return (
+    <>
+      {ends.map((e) => {
+        const o = e.output as any;
+        return e.tool === "start_return" ? (
+          <Card key={e.id} className="mt-4">
+            <div className="flex flex-wrap gap-2"><Pill tone="good">✓ Return started</Pill><Pill tone="caution">Demo</Pill></div>
+            <h3 className="mt-2 text-2xl font-bold">{o.item}</h3>
+            <div className="mt-2 text-3xl font-bold text-good">{usd(o.refund_usd)} back</div>
+            <p className="mt-2 text-lg">Drop it off by <b className="text-urgent">{niceDate(o.return_by)}</b>. {o.drop_off}</p>
+            <p className="mt-1 text-base text-muted">Return number {o.return_id} · refund in {o.refund_timing}</p>
+          </Card>
+        ) : (
+          <Card key={e.id} className="mt-4">
+            <div className="flex flex-wrap gap-2"><Pill tone="good">Claim form filled in</Pill><Pill tone="caution">Demo · not sent</Pill></div>
+            <h3 className="mt-2 text-2xl font-bold">Get {usd(o.claim_amount_usd)} back from Aetna</h3>
+            <p className="mt-1 text-lg">{o.form} for {o.member}. Receipt attached. Send it by <b className="text-urgent">{niceDate(o.submit_by)}</b>.</p>
+            <p className="mt-1 text-base text-muted">Draft {o.claim_id}</p>
+          </Card>
+        );
+      })}
+    </>
   );
 }
 
@@ -621,6 +793,9 @@ function summarize(tool: string, input: any, output: any): string {
     case "check_fda_status": return output?.verdict ? `${output.sku}: ${output.verdict === "ok" ? "real hearing aid" : output.verdict === "caution" ? "not confirmed, avoid" : "not a hearing aid"}` : input?.sku;
     case "calculate_cost": return output?.family_pays_usd != null ? `You'd pay ${usd(output.family_pays_usd)}` : output?.error ?? "";
     case "place_order": return output?.order_id ? `${output.order_id} · return by ${output.return_by}` : output?.error ?? "";
+    case "propose_purchase": return output?.name ? `${output.name} · you pay ${usd(output.family_pays_usd)} · waiting for approval` : output?.error ?? "";
+    case "start_return": return output?.return_id ? `${output.return_id} · ${usd(output.refund_usd)} back` : output?.error ?? "";
+    case "prepare_reimbursement_claim": return output?.claim_id ? `${usd(output.claim_amount_usd)} claim ready · send by ${output.submit_by}` : output?.error ?? "";
     case "schedule_reminder": return `${input?.date} · ${input?.title}`;
     case "brief_caregiver": return input?.headline ?? "";
     default: return "";

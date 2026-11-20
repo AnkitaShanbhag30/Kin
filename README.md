@@ -19,7 +19,9 @@ Kin is built for the older adult first, with family in the loop:
 
 - **Onboarding (before the app):** sign in (demo), confirm identity with **Persona**, then connect the insurance plan and **Gmail**.
 - **Today:** at most two things at a time, with one clear action each. Color only where it matters: red for deadlines, green for money back, amber for cautions. Typeset in Atkinson Hyperlegible, a typeface built for low-vision readers, at large sizes.
-- **Chat with Kin:** short, plain-language answers. The full reasoning lives in the **Activity** panel.
+- **Chat with Kin:** short, plain-language answers. Type, speak (browser voice input), or attach a photo or PDF, such as an audiogram or receipt, which Claude reads. The full reasoning lives in the **Activity** panel.
+- **Approve or delegate:** Kin proposes one product with an image and the cost math. Ruth taps **Buy it**, or **Ask Priya to buy it**, which sends the proposal to the family chat for Priya to approve.
+- **After the purchase:** Kin prepares the insurance reimbursement claim (demo, not sent) and can **start a return** for an item found in email (demo).
 - **Family chat:** invite a caregiver. Kin posts a fuller update there after it buys something, with every claim cited.
 - **Gmail (demo inbox):** Kin finds delivery emails and computes return deadlines. It also finds the audiologist's visit summary that starts the journey. Real Gmail access needs Google's restricted-scope review, so this demo reads a sample inbox (`data/inbox.json`).
 
@@ -40,6 +42,8 @@ Kin then:
 The right-hand **Audit trail** shows every step live: the agent's progress notes, each tool call with raw input and output, and source chips that open the exact context chunk behind a decision. **Export JSON** saves the whole trail.
 
 ## Guardrails enforced in code (not just the prompt)
+
+- **Human approval for every purchase.** The agent can only `propose_purchase`. `place_order` is refused unless the user taps **Buy it**, or their caregiver taps **Approve** in the family chat.
 
 - `place_order` is refused unless `check_fda_status` ran on that SKU, and always refused for PSAPs.
 - `calculate_cost` rejects benefit amounts unless they cite `content_id`s the agent actually retrieved during this run.
