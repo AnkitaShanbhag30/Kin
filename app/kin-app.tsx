@@ -56,7 +56,7 @@ export function KinApp({
   const [panel, setPanel] = useState<{ tab: "steps" | "reminders"; runId?: string } | null>(null);
   const [openSource, setOpenSource] = useState<Source | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const dismissed = session.kept ?? [];
+  const dismissed = useMemo(() => session.kept ?? [], [session.kept]);
   const [gmailJustConnected, setGmailJustConnected] = useState(false);
   // Both "Connect Gmail" paths (Today card and sidebar link) confirm the same way on Today.
   const connectGmail = () => { update({ gmail: true }); setGmailJustConnected(true); setView("today"); };
@@ -210,7 +210,7 @@ export function KinApp({
           time: t.time,
         }),
       );
-      inbox.deliveries.forEach((d) => {
+      inbox.deliveries.filter((d) => !dismissed.includes(d.email_id)).forEach((d) => {
         ev.push({ date: d.return_by, kind: "deadline", title: `Return ${d.item.split(" ").slice(0, 2).join(" ")} (last day)`, detail: `${d.retailer} order ${d.order_ref}` });
       });
     }
@@ -222,7 +222,7 @@ export function KinApp({
     }
     allReminders.forEach((r) => ev.push({ date: r.date, kind: "reminder", title: r.title, detail: r.details }));
     return ev;
-  }, [session.gmail, inbox, derived.order, allReminders]);
+  }, [session.gmail, inbox, derived.order, allReminders, dismissed]);
 
   const urgentCount = (inbox?.deliveries.filter((d) => !dismissed.includes(d.email_id)).length ?? 0) + (derived.order ? 1 : 0);
 
