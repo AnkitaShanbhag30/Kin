@@ -31,3 +31,11 @@ body {
   outline: 3px solid var(--color-brand);
   outline-offset: 2px;
 }
+
+/* Order celebration: the check draws in once. Skipped entirely for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .kin-celebrate { animation: kin-pop 500ms ease-out both; }
+  .kin-check { stroke-dasharray: 30; stroke-dashoffset: 30; animation: kin-draw 600ms 250ms ease-out forwards; }
+}
+@keyframes kin-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes kin-draw { to { stroke-dashoffset: 0; } }

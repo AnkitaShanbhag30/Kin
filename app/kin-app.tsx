@@ -6,7 +6,7 @@ import { DEMO_CAREGIVER, DEMO_PROMPT } from "@/lib/demo";
 import type { Config, Session } from "./session";
 import {
   Button, Card, KinAvatar, Markdown, PersonAvatar, Pill, ProductImage, SourceChip, SourceDrawer,
-  daysFromNow, download, ics, niceDate, usd,
+  daysFromNow, download, ics, longDate, niceDate, usd,
 } from "./ui";
 
 type ChatId = "kin" | "family";
@@ -56,7 +56,10 @@ export function KinApp({
   const [panel, setPanel] = useState<{ tab: "steps" | "reminders"; runId?: string } | null>(null);
   const [openSource, setOpenSource] = useState<Source | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [dismissed, setDismissed] = useState<string[]>([]);
+  const dismissed = session.kept ?? [];
+  const [gmailJustConnected, setGmailJustConnected] = useState(false);
+  // Both "Connect Gmail" paths (Today card and sidebar link) confirm the same way on Today.
+  const connectGmail = () => { update({ gmail: true }); setGmailJustConnected(true); setView("today"); };
   const [careReminders, setCareReminders] = useState<(Reminder & { email_id: string })[]>([]);
   const ac = useRef<AbortController | null>(null);
 
@@ -245,7 +248,10 @@ export function KinApp({
           <Conn ok label="Identity" detail={session.identity?.provider === "persona" ? "Persona" : "Simulated"} />
           <Conn ok label="Plan" detail="Aetna" />
           {session.gmail ? <Conn ok label="Gmail" detail="Demo inbox" /> : (
-            <button className="text-left font-bold text-brand underline" onClick={() => update({ gmail: true })}>Connect Gmail</button>
+            <button className="text-left font-bold text-brand underline" onClick={connectGmail}>Connect Gmail</button>
+          )}
+          {session.caregiver?.joined ? <Conn ok label="Family" detail={session.caregiver.firstName} /> : (
+            <button className="block text-left font-bold text-brand underline" onClick={() => setInviteOpen(true)}>Invite family</button>
           )}
         </div>
         <div className="mt-auto flex items-center gap-3 border-t border-line px-2 pt-4">
@@ -280,8 +286,8 @@ export function KinApp({
           {view === "today" && (
             <Today
               session={session} inbox={inbox} order={derived.order} chosen={derived.chosen} dismissed={dismissed}
-              onDismiss={(id) => setDismissed((d) => [...d, id])} onAsk={(t) => ask(t)} onInvite={() => setInviteOpen(true)}
-              onConnectGmail={() => update({ gmail: true })} onSteps={() => setPanel({ tab: "steps" })}
+              onDismiss={(id) => update({ kept: [...dismissed, id] })} onAsk={(t) => ask(t)} onInvite={() => setInviteOpen(true)}
+              onConnectGmail={connectGmail} gmailJustConnected={gmailJustConnected} onGmailNoticeDone={() => setGmailJustConnected(false)} onSteps={() => setPanel({ tab: "steps" })}
               reminded={careReminders.map((r) => r.email_id)} onRemind={remindBoth}
             />
           )}
@@ -303,6 +309,7 @@ export function KinApp({
         <ActivityPanel
           panel={panel} setPanel={setPanel} runs={runs} reminders={[...careReminders, ...derived.reminders].sort((a, b) => a.date.localeCompare(b.date))} sources={derived.sources}
           onOpenSource={setOpenSource} config={config} running={running}
+          notified={session.notify ?? []} onNotify={(k) => update({ notify: [...(session.notify ?? []), k] })}
         />
       )}
 
@@ -335,10 +342,11 @@ function Conn({ ok, label, detail }: { ok: boolean; label: string; detail: strin
 /* ---------------- Today ---------------- */
 
 function Today({
-  session, inbox, order, chosen, dismissed, onDismiss, onAsk, onInvite, onConnectGmail, onSteps, reminded, onRemind,
+  session, inbox, order, chosen, dismissed, onDismiss, onAsk, onInvite, onConnectGmail, onSteps, gmailJustConnected, onGmailNoticeDone, reminded, onRemind,
 }: {
   session: Session; inbox?: InboxScan; order?: Order; chosen?: Cost; dismissed: string[];
   onDismiss: (id: string) => void; onAsk: (t: string) => void; onInvite: () => void; onConnectGmail: () => void; onSteps: () => void;
+  gmailJustConnected?: boolean; onGmailNoticeDone?: () => void;
   reminded: string[]; onRemind: (t: CareTask) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
@@ -355,13 +363,14 @@ function Today({
         days: d.days_left,
         node: (
           <Card className="border-urgent/30">
-            <Pill tone="urgent">Return by {niceDate(d.return_by)} · {d.days_left} days left</Pill>
+            <Pill tone="urgent">{d.days_left} {d.days_left === 1 ? "day" : "days"} left • return by {longDate(d.return_by)}</Pill>
             <h3 className="mt-3 text-2xl font-bold">{d.item}</h3>
-            <p className="mt-1 text-lg text-muted">Delivered {niceDate(d.delivered_on)} from {d.retailer}. Found in your email.</p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Button onClick={() => onAsk(`I don't like the ${d.item} I got from ${d.retailer}. When do I have to return it by, and can you help me return it?`)}>Help me return it</Button>
-              <Button kind="secondary" onClick={() => onDismiss(d.email_id)}>I&apos;m keeping it</Button>
-            </div>
+            <p className="mt-1 text-lg text-muted">Delivered {niceDate(d.delivered_on)} from {d.retailer}. <b className="text-ink">Found in your email.</b></p>
+            <KeepOrReturn
+              item={d.item}
+              onReturn={() => onAsk(`I don't like the ${d.item} I got from ${d.retailer}. When do I have to return it by, and can you help me return it?`)}
+              onKeep={() => onDismiss(d.email_id)}
+            />
           </Card>
         ),
       }),
@@ -447,6 +456,7 @@ function Today({
         {cards.length ? `${cards.length === 1 ? "One thing" : `${cards.length} things`} for you today.` : "Nothing needs you today."}
       </p>
       <div className="mt-6 space-y-4">
+        {gmailJustConnected && <GmailConnectedCard onDone={() => onGmailNoticeDone?.()} />}
         {visible.map((c) => <div key={c.key}>{c.node}</div>)}
       </div>
       {cards.length > 2 && (
@@ -461,15 +471,86 @@ function Today({
   );
 }
 
+// "I'm keeping it" asks to confirm, shows a short done note, then removes the card (saved in the session).
+function KeepOrReturn({ item, onReturn, onKeep }: { item: string; onReturn: () => void; onKeep: () => void }) {
+  const [stage, setStage] = useState<"choose" | "confirm" | "done">("choose");
+  useEffect(() => {
+    if (stage !== "done") return;
+    const t = setTimeout(onKeep, 3000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
+  if (stage === "done")
+    return (
+      <p role="status" className="mt-4 rounded-xl bg-good-bg p-4 text-lg font-bold text-good">✓ Done. Kin won&apos;t remind you about returning it.</p>
+    );
+  if (stage === "confirm")
+    return (
+      <div className="mt-4 rounded-xl bg-soft p-4">
+        <p className="text-lg font-bold">Keep the {item}?</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Button onClick={() => setStage("done")}>Yes, I&apos;m keeping it</Button>
+          <Button kind="secondary" onClick={() => setStage("choose")}>Not yet</Button>
+        </div>
+      </div>
+    );
+  return (
+    <div className="mt-4 flex flex-wrap gap-3">
+      <Button onClick={onReturn}>Help me return it</Button>
+      <Button kind="secondary" onClick={() => setStage("confirm")}>I&apos;m keeping it</Button>
+    </div>
+  );
+}
+
+// Shown at the top of Today right after Gmail connects; fades out after 30s (no fade with reduced motion).
+function GmailConnectedCard({ onDone }: { onDone: () => void }) {
+  const [fading, setFading] = useState(false);
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { const t = setTimeout(onDone, 30_000); return () => clearTimeout(t); }
+    const f = setTimeout(() => setFading(true), 30_000);
+    const t = setTimeout(onDone, 30_700);
+    return () => { clearTimeout(f); clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div role="status" className={`transition-opacity duration-700 ${fading ? "opacity-0" : "opacity-100"}`}>
+      <Card className="border-good/30">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-good-bg text-lg font-bold text-good" aria-hidden>✓</span>
+          <div>
+            <h3 className="text-2xl font-bold">Gmail connected</h3>
+            <p className="mt-1 text-lg text-muted">Kin will tell you when something arrives and when it must go back.</p>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function OrderCard({ order, chosen, onSteps }: { order: Order; chosen?: Cost; onSteps?: () => void }) {
   const rows = [
     { tone: "brand" as const, label: "Arrives", date: order.estimated_delivery },
     { tone: "urgent" as const, label: "Decide keep or return by", date: order.return_by },
     { tone: "good" as const, label: "Claim money back from Aetna by", date: order.otc_reimbursement_claim_by },
   ];
+  const claimSteps = [
+    "Keep the itemized receipt.",
+    "Fill in the OTC Hearing Aid Reimbursement Form.",
+    `Send both to Aetna by ${niceDate(order.otc_reimbursement_claim_by)} (within 90 days of purchase).`,
+    "Aetna mails a check within 30 days of approving the claim.",
+  ];
   return (
     <Card>
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Celebration: a check that draws in (static when reduced motion is on), then a warm headline. */}
+      <div className="flex items-center gap-3">
+        <svg width="44" height="44" viewBox="0 0 44 44" className="kin-celebrate shrink-0" aria-hidden>
+          <circle cx="22" cy="22" r="20" className="fill-good-bg" />
+          <path d="M13 22.5l6 6 12-13" fill="none" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="kin-check stroke-good" />
+        </svg>
+        <p className="text-2xl font-bold text-good">Your new hearing aids are on the way!</p>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <Pill tone="good">✓ Ordered</Pill>
         <Pill tone="caution">Demo store · no real purchase</Pill>
       </div>
@@ -488,6 +569,15 @@ function OrderCard({ order, chosen, onSteps }: { order: Order; chosen?: Cost; on
           </li>
         ))}
       </ul>
+      {chosen?.plan_pays_usd != null && (
+        <div className="mt-5 border-t border-line pt-4">
+          <h4 className="text-xl font-bold">Getting {usd(chosen.plan_pays_usd)} back from Aetna</h4>
+          <ol className="mt-2 list-decimal space-y-1 pl-6 text-lg">
+            {claimSteps.map((s) => <li key={s}>{s}</li>)}
+          </ol>
+        </div>
+      )}
+      <p className="mt-4 rounded-xl bg-soft p-4 text-lg">Not sure about them? You can return them until <b>{longDate(order.return_by)}</b>.</p>
       {order.buyer_verification && (
         <p className="mt-3 text-base text-muted">
           {order.buyer_verification.provider === "persona"
@@ -1005,8 +1095,9 @@ function orderInRun(events?: AuditEvent[]) {
 /* ---------------- Activity panel ---------------- */
 
 function ActivityPanel({
-  panel, setPanel, runs, reminders, sources, onOpenSource, config, running,
+  panel, setPanel, runs, reminders, sources, onOpenSource, config, running, notified, onNotify,
 }: {
+  notified: string[]; onNotify: (key: string) => void;
   panel: { tab: "steps" | "reminders"; runId?: string };
   setPanel: (p: { tab: "steps" | "reminders"; runId?: string } | null) => void;
   runs: Record<string, AuditEvent[]>; reminders: Reminder[]; sources: Map<string, Source>;
@@ -1085,7 +1176,14 @@ function ActivityPanel({
                 <Pill tone={/return/i.test(r.title) ? "urgent" : /claim|reimburse/i.test(r.title) ? "good" : "brand"}>{niceDate(r.date)}</Pill>
                 <div className="mt-2 text-lg font-bold">{r.title}</div>
                 <div className="text-base text-muted">{r.details}</div>
-                <Button kind="ghost" className="-ml-4" onClick={() => download(`kin-${r.date}.ics`, ics(r), "text/calendar")}>Add to my calendar</Button>
+                <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <Button kind="ghost" className="-ml-4" onClick={() => download(`kin-${r.date}.ics`, ics(r), "text/calendar")}>Add to my calendar</Button>
+                  {notified.includes(`${r.date}|${r.title}`) ? (
+                    <span role="status" className="font-bold text-good">✓ We&apos;ll remind you {niceDate(r.date)} (demo)</span>
+                  ) : (
+                    <Button kind="ghost" onClick={() => onNotify(`${r.date}|${r.title}`)}>Notify me</Button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
