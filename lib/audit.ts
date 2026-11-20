@@ -1,0 +1,44 @@
+export type Source = {
+  content_id: string;
+  title: string;
+  chunk_text: string;
+  score?: number;
+  provider: "senso" | "local-fallback" | "catalog";
+};
+
+export type AuditEvent =
+  | { kind: "start"; id: string; ts: string; prompt: string; model: string; context_provider: string }
+  | { kind: "note"; id: string; ts: string; text: string }
+  | { kind: "tool_start"; id: string; ts: string; step: number; tool: string; label: string; input: unknown }
+  | {
+      kind: "tool_end";
+      id: string;
+      ts: string;
+      step: number;
+      tool: string;
+      label: string;
+      input: unknown;
+      output: unknown;
+      sources: Source[];
+      ok: boolean;
+      ms: number;
+    }
+  | { kind: "final"; id: string; ts: string; text: string }
+  | { kind: "error"; id: string; ts: string; message: string }
+  | { kind: "done"; id: string; ts: string; steps: number; ms: number };
+
+export type Emit = (e: AuditEvent) => void;
+
+export const now = () => new Date().toISOString();
+export const newId = () => Math.random().toString(36).slice(2, 10);
+
+// Plain-English labels shown in the audit trail.
+export const TOOL_LABELS: Record<string, string> = {
+  search_trusted_context: "Looked up trusted context (plan, Medicare, FDA, returns, Ruth's profile)",
+  search_products: "Searched hearing aids that fit Ruth's needs",
+  check_fda_status: "Checked the device's FDA status",
+  calculate_cost: "Worked out what the family actually pays",
+  place_order: "Placed the order (demo merchant)",
+  schedule_reminder: "Scheduled a reminder",
+  brief_caregiver: "Sent Priya a summary",
+};
