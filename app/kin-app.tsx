@@ -18,6 +18,7 @@ type Msg = {
 type Attachment = { name: string; media_type: string; data: string };
 type Option = {
   sku: string; name: string; style: string; retailer: string; product_url: string; price_pair_usd: number;
+  rechargeable?: boolean; behind_the_ear?: boolean; self_fitting_app?: boolean; rating?: number;
   return_window_days: number; label: string; reason: string; tradeoff: string; route: string;
   family_pays_usd: number; plan_pays_usd: number;
 };
@@ -620,12 +621,24 @@ function ProposalCard({ p, ordered, busy, buyLabel, onBuy, share }: {
   p: Proposal; ordered: Set<string>; busy: boolean; buyLabel: string; onBuy: (o: Option) => void;
   share?: { label: string; onClick: () => void };
 }) {
-  const chosen = p.options.find((o) => ordered.has(o.sku));
-  // Recommended first; at most three, so the choice stays easy.
-  const options = [...p.options].sort((a, b) => Number(b.sku === p.recommended_sku) - Number(a.sku === p.recommended_sku)).slice(0, 3);
+  const [more, setMore] = useState<{ options: Option[]; hidden_not_fda: number } | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Recommended first; at most three, so the choice stays easy. "Show more" appends the rest.
+  const base = [...p.options].sort((a, b) => Number(b.sku === p.recommended_sku) - Number(a.sku === p.recommended_sku)).slice(0, 3);
+  const all = [...base, ...(more?.options ?? [])];
+  const chosen = all.find((o) => ordered.has(o.sku));
+  const options = all;
+  async function showMore() {
+    setLoadingMore(true);
+    const allowance = Math.max(0, ...p.options.filter((o) => o.route === "otc_allowance").map((o) => o.plan_pays_usd));
+    const r = await fetch(`/api/options?exclude=${encodeURIComponent(p.options.map((o) => o.sku).join(","))}&allowance=${allowance}`);
+    setMore(await r.json());
+    setLoadingMore(false);
+  }
   return (
     <div className="space-y-3">
       <div className="text-lg font-bold">{chosen ? "You chose:" : `Pick one${options.length > 1 ? ` of ${options.length}` : ""}:`}</div>
+      {!chosen && <RatingKey />}
       {options.filter((o) => !chosen || o.sku === chosen.sku).map((o) => {
         const pick = o.sku === p.recommended_sku;
         return (
@@ -639,9 +652,10 @@ function ProposalCard({ p, ordered, busy, buyLabel, onBuy, share }: {
                 </div>
                 <h3 className="mt-2 text-xl font-bold leading-tight">{o.name}</h3>
                 <p className="mt-1 text-lg">{o.reason}</p>
-                <p className="mt-1 text-base text-caution">⚠ {o.tradeoff}</p>
+                {o.tradeoff && <p className="mt-1 text-base text-caution">⚠ {o.tradeoff}</p>}
               </div>
             </div>
+            <Ratings o={o} />
             <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
               <div>
                 <div className="text-2xl font-bold text-good">You pay {usd(o.family_pays_usd)}</div>
@@ -658,9 +672,83 @@ function ProposalCard({ p, ordered, busy, buyLabel, onBuy, share }: {
           </Card>
         );
       })}
+      {!chosen && !more && (
+        <Button kind="secondary" className="w-full" disabled={loadingMore} onClick={showMore}>
+          {loadingMore ? "Finding more…" : "Show more options"}
+        </Button>
+      )}
+      {!chosen && more && (
+        <p className="text-base text-muted">
+          {more.options.length ? `Showing ${more.options.length} more.` : "No other hearing aids to show."}
+          {more.hidden_not_fda > 0 && ` ${more.hidden_not_fda} more were left out because they aren't FDA hearing aids.`}
+        </p>
+      )}
       {!chosen && share && <Button kind="ghost" className="-ml-4" disabled={busy} onClick={share.onClick}>{share.label}</Button>}
       <p className="text-sm text-muted">Nothing is bought until someone taps to approve. Demo store: no real purchase.</p>
     </div>
+  );
+}
+
+/* Easy-to-scan ratings: a word, a color, and filled dots (never color alone). Computed from real data. */
+type Score = { label: string; score: number; why: string };
+function scoresFor(o: Option): Score[] {
+  const pay = o.family_pays_usd;
+  const s: Score[] = [
+    { label: "Price for you", score: pay <= 400 ? 5 : pay <= 800 ? 4 : pay <= 1200 ? 3 : pay <= 2000 ? 2 : 1, why: o.plan_pays_usd > 0 ? `${usd(o.price_pair_usd)} before Aetna pays back` : "no plan payback" },
+    {
+      label: "Fits you",
+      score: Math.max(1, 5 - (o.behind_the_ear ? 3 : 0) - (o.rechargeable === false ? 2 : 0)),
+      why: [o.behind_the_ear ? "sits behind the ear" : "in the ear", o.rechargeable === false ? "tiny batteries" : "rechargeable"].join(", "),
+    },
+    {
+      label: "Easy to use",
+      score: Math.min(5, 2 + (o.rechargeable ? 2 : 0) + (o.self_fitting_app ? 1 : 0)),
+      why: [o.rechargeable ? "charges in a case" : "change batteries", o.self_fitting_app ? "app sets it up" : "needs a fitting"].join(", "),
+    },
+    {
+      label: "Time to return",
+      score: o.return_window_days >= 90 ? 5 : o.return_window_days >= 45 ? 4 : o.return_window_days >= 30 ? 3 : 2,
+      why: `${o.return_window_days} days`,
+    },
+  ];
+  if (typeof o.rating === "number") s.push({ label: "Reviews", score: Math.round(o.rating), why: `${o.rating.toFixed(1)} of 5 stars` });
+  return s;
+}
+
+const WORD = ["", "Poor", "Fair", "OK", "Good", "Great"];
+function Ratings({ o }: { o: Option }) {
+  return (
+    <dl className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+      {scoresFor(o).map((r) => {
+        const color = r.score >= 4 ? "bg-good" : r.score === 3 ? "bg-caution" : "bg-urgent";
+        const text = r.score >= 4 ? "text-good" : r.score === 3 ? "text-caution" : "text-urgent";
+        return (
+          <div key={r.label}>
+            <dt className="flex items-baseline justify-between gap-2">
+              <span className="font-bold">{r.label}</span>
+              <span className={`font-bold ${text}`}>{WORD[r.score]}</span>
+            </dt>
+            <dd>
+              <span className="mt-1 flex gap-1" role="img" aria-label={`${r.label}: ${r.score} out of 5, ${WORD[r.score]}`}>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <span key={i} className={`h-2.5 flex-1 rounded-full ${i <= r.score ? color : "bg-line"}`} />
+                ))}
+              </span>
+              <span className="text-sm text-muted">{r.why}</span>
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
+
+function RatingKey() {
+  return (
+    <p className="text-base text-muted">
+      More filled bars is better. <span className="font-bold text-good">Great/Good</span> ·{" "}
+      <span className="font-bold text-caution">OK</span> · <span className="font-bold text-urgent">Fair/Poor</span>
+    </p>
   );
 }
 
