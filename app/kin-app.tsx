@@ -10,7 +10,7 @@ import {
 } from "./ui";
 
 type ChatId = "kin" | "family";
-type View = "today" | ChatId;
+type View = "today" | "calendar" | ChatId;
 type Msg = {
   id: string; chat: ChatId; from: "user" | "kin" | "caregiver" | "system"; text: string;
   runId?: string; headline?: string; files?: string[]; proposalRunId?: string;
@@ -189,6 +189,38 @@ export function KinApp({
     }, 1500);
   }
 
+  const allReminders = useMemo(() => [...careReminders, ...derived.reminders], [careReminders, derived.reminders]);
+  const events = useMemo(() => {
+    const ev: CalEvent[] = [];
+    if (session.gmail && inbox) {
+      inbox.care?.forEach((t) =>
+        ev.push({
+          date: t.due,
+          kind: t.kind === "appointment" ? "appointment" : "deadline",
+          title:
+            t.kind === "refill"
+              ? `${t.title.replace(/^Refill\s+/i, "").replace(/\s*\(.*\)$/, "")} runs out`
+              : t.kind === "book_appointment"
+                ? `Book by today: ${t.title.replace(/^Book (a |your )?/i, "")}`
+                : t.title,
+          detail: `${t.place}. ${t.detail}`,
+          time: t.time,
+        }),
+      );
+      inbox.deliveries.forEach((d) => {
+        ev.push({ date: d.return_by, kind: "deadline", title: `Return ${d.item.split(" ").slice(0, 2).join(" ")} (last day)`, detail: `${d.retailer} order ${d.order_ref}` });
+      });
+    }
+    if (derived.order) {
+      const o = derived.order;
+      ev.push({ date: o.estimated_delivery, kind: "delivery", title: `${o.name} arrive`, detail: "Demo order " + o.order_id });
+      ev.push({ date: o.return_by, kind: "deadline", title: "Last day to return the hearing aids", detail: `Order ${o.order_id}` });
+      ev.push({ date: o.otc_reimbursement_claim_by, kind: "money", title: "Last day to claim money back from Aetna", detail: "Send the receipt and claim form" });
+    }
+    allReminders.forEach((r) => ev.push({ date: r.date, kind: "reminder", title: r.title, detail: r.details }));
+    return ev;
+  }, [session.gmail, inbox, derived.order, allReminders]);
+
   const urgentCount = (inbox?.deliveries.filter((d) => !dismissed.includes(d.email_id)).length ?? 0) + (derived.order ? 1 : 0);
 
   return (
@@ -200,6 +232,7 @@ export function KinApp({
           <span className="text-xl font-bold">Kin</span>
         </div>
         <NavItem active={view === "today"} onClick={() => setView("today")} icon="☀︎" label="Today" badge={urgentCount || undefined} />
+        <NavItem active={view === "calendar"} onClick={() => setView("calendar")} icon="📅" label="Calendar" />
         <div className="mt-6 px-3 text-sm font-bold uppercase tracking-wide text-muted">Chats</div>
         <NavItem active={view === "kin"} onClick={() => setView("kin")} icon={<KinAvatar size={26} />} label="Kin" />
         {session.caregiver ? (
@@ -228,15 +261,15 @@ export function KinApp({
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-line bg-white/90 px-4 py-3 backdrop-blur">
           <div className="flex gap-1 lg:hidden">
-            {(["today", "kin", "family"] as const).map((v) => (
+            {(["today", "calendar", "kin", "family"] as const).map((v) => (
               <button key={v} onClick={() => (v === "family" && !session.caregiver ? setInviteOpen(true) : setView(v))}
                 className={`rounded-full px-4 py-2 font-bold ${view === v ? "bg-ink text-white" : "bg-soft"}`}>
-                {v === "today" ? "Today" : v === "kin" ? "Kin" : "Family"}
+                {v === "today" ? "Today" : v === "calendar" ? "Calendar" : v === "kin" ? "Kin" : "Family"}
               </button>
             ))}
           </div>
           <h1 className="hidden text-xl font-bold lg:block">
-            {view === "today" ? "Today" : view === "kin" ? "Kin" : `Family · ${session.user.firstName}, ${session.caregiver?.firstName ?? ""} and Kin`}
+            {view === "today" ? "Today" : view === "calendar" ? "Calendar" : view === "kin" ? "Kin" : `Family · ${session.user.firstName}, ${session.caregiver?.firstName ?? ""} and Kin`}
           </h1>
           <Button kind="secondary" onClick={() => setPanel(panel ? null : { tab: "steps" })}>
             {panel ? "Hide activity" : "Activity"}
@@ -252,10 +285,11 @@ export function KinApp({
               reminded={careReminders.map((r) => r.email_id)} onRemind={remindBoth}
             />
           )}
-          {view !== "today" && (
+          {view === "calendar" && <CalendarView events={events} gmail={session.gmail} onConnectGmail={() => update({ gmail: true })} />}
+          {(view === "kin" || view === "family") && (
             <Chat
-              chat={view} session={session} messages={messages.filter((m) => m.chat === view)} runs={runs} running={running}
-              derived={derived} onAsk={(t, extra) => ask(t, view, extra)} onOpenSource={setOpenSource}
+              chat={view as ChatId} session={session} messages={messages.filter((m) => m.chat === view)} runs={runs} running={running}
+              derived={derived} onAsk={(t, extra) => ask(t, view as ChatId, extra)} onOpenSource={setOpenSource}
               onSteps={(runId) => setPanel({ tab: "steps", runId })} onStop={() => ac.current?.abort()}
               onInvite={() => setInviteOpen(true)}
               onPostToFamily={(t) => push({ chat: "family", from: "user", text: t })}
@@ -463,6 +497,113 @@ function OrderCard({ order, chosen, onSteps }: { order: Order; chosen?: Cost; on
       )}
       {onSteps && <Button kind="ghost" className="mt-2 -ml-4" onClick={onSteps}>See how Kin decided</Button>}
     </Card>
+  );
+}
+
+/* ---------------- Calendar ---------------- */
+
+type CalEvent = { date: string; kind: "deadline" | "appointment" | "money" | "delivery" | "reminder"; title: string; detail?: string; time?: string };
+const KIND: Record<CalEvent["kind"], { icon: string; tone: string; label: string }> = {
+  deadline: { icon: "⏰", tone: "bg-urgent-bg text-urgent", label: "Deadline" },
+  appointment: { icon: "📅", tone: "bg-brand-bg text-brand", label: "Appointment" },
+  delivery: { icon: "📦", tone: "bg-soft text-ink", label: "Delivery" },
+  money: { icon: "$", tone: "bg-good-bg text-good", label: "Money back" },
+  reminder: { icon: "🔔", tone: "bg-caution-bg text-caution", label: "Reminder" },
+};
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function CalendarView({ events, gmail, onConnectGmail }: { events: CalEvent[]; gmail: boolean; onConnectGmail: () => void }) {
+  const today = iso(new Date());
+  const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const [selected, setSelected] = useState(today);
+  const byDay = new Map<string, CalEvent[]>();
+  events.forEach((e) => byDay.set(e.date, [...(byDay.get(e.date) ?? []), e]));
+
+  // Weeks start on Sunday; show the full weeks covering this month.
+  const start = new Date(month);
+  start.setDate(1 - start.getDay());
+  const days = Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+  const weeks = days.slice(35).some((d) => d.getMonth() === month.getMonth()) ? 6 : 5;
+  const shift = (n: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1));
+  const dayEvents = byDay.get(selected) ?? [];
+  const upcoming = events.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-6">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-3xl font-bold">{month.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</h2>
+        <div className="flex gap-2">
+          <Button kind="secondary" onClick={() => shift(-1)} className="px-4" >‹ <span className="sr-only">Previous month</span></Button>
+          <Button kind="secondary" onClick={() => { const d = new Date(); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); setSelected(today); }}>Today</Button>
+          <Button kind="secondary" onClick={() => shift(1)} className="px-4">› <span className="sr-only">Next month</span></Button>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {Object.entries(KIND).map(([k, v]) => <span key={k} className={`rounded-full px-3 py-1 text-sm font-bold ${v.tone}`}>{v.icon} {v.label}</span>)}
+      </div>
+
+      <div className="mt-4 grid grid-cols-7 overflow-hidden rounded-2xl border border-line">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+          <div key={d} className="border-b border-line bg-soft py-2 text-center text-base font-bold">{d}</div>
+        ))}
+        {days.slice(0, weeks * 7).map((d) => {
+          const key = iso(d);
+          const evs = byDay.get(key) ?? [];
+          const out = d.getMonth() !== month.getMonth();
+          const isToday = key === today;
+          const isSel = key === selected;
+          return (
+            <button key={key} onClick={() => setSelected(key)} aria-label={`${d.toDateString()}, ${evs.length} events`}
+              className={`min-h-24 border-b border-r border-line p-1.5 text-left align-top transition hover:bg-soft ${out ? "bg-soft/50 text-muted" : ""} ${isSel ? "ring-3 ring-inset ring-ink" : ""}`}>
+              <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-lg font-bold ${isToday ? "bg-ink text-white" : ""}`}>{d.getDate()}</span>
+              <span className="mt-1 block space-y-1">
+                {evs.slice(0, 2).map((e, i) => (
+                  <span key={i} className={`block truncate rounded-md px-1.5 py-0.5 text-xs font-bold ${KIND[e.kind].tone}`}>{KIND[e.kind].icon} {e.title}</span>
+                ))}
+                {evs.length > 2 && <span className="block text-xs font-bold text-muted">+{evs.length - 2} more</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <section>
+          <h3 className="text-xl font-bold">{selected === today ? "Today" : niceDate(selected)}</h3>
+          {dayEvents.length === 0 && <p className="mt-2 text-lg text-muted">Nothing on this day.</p>}
+          <ul className="mt-2 space-y-3">{dayEvents.map((e, i) => <EventRow key={i} e={e} />)}</ul>
+        </section>
+        <section>
+          <h3 className="text-xl font-bold">Coming up</h3>
+          {!gmail && (
+            <p className="mt-2 text-lg text-muted">
+              Connect Gmail and Kin will add appointments, refills and return dates here.{" "}
+              <button className="font-bold text-brand underline" onClick={onConnectGmail}>Connect Gmail</button>
+            </p>
+          )}
+          <ul className="mt-2 space-y-3">{upcoming.map((e, i) => <EventRow key={i} e={e} showDate />)}</ul>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function EventRow({ e, showDate }: { e: CalEvent; showDate?: boolean }) {
+  const k = KIND[e.kind];
+  const left = daysFromNow(e.date);
+  return (
+    <li className="flex gap-3 rounded-xl border border-line p-3">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${k.tone}`}>{k.icon}</span>
+      <div className="min-w-0">
+        <div className="text-lg font-bold leading-snug">{e.title}</div>
+        <div className="text-base text-muted">
+          {showDate && `${niceDate(e.date)}${e.time ? ` · ${e.time}` : ""} · ${left === 0 ? "today" : left === 1 ? "tomorrow" : `in ${left} days`}`}
+          {!showDate && e.time}
+        </div>
+        {e.detail && <div className="text-base text-muted">{e.detail}</div>}
+      </div>
+    </li>
   );
 }
 
