@@ -5,7 +5,7 @@ const SENSO_BASE = "https://apiv2.senso.ai/api/v1";
 
 export const contextProvider = () => (process.env.SENSO_API_KEY ? "senso" : "local-fallback");
 
-type SensoResult = { content_id: string; title: string; chunk_text: string; score?: number };
+type SensoResult = { content_chunk_id: string; content_id: string; title?: string; chunk_text: string; score?: number };
 
 // Retrieval only: Claude does the reasoning, Senso supplies citable chunks.
 export async function searchTrustedContext(query: string): Promise<Source[]> {
@@ -15,11 +15,18 @@ export async function searchTrustedContext(query: string): Promise<Source[]> {
   const res = await fetch(`${SENSO_BASE}/org/search/context`, {
     method: "POST",
     headers: { "X-API-Key": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ query, max_results: 5 }),
+    body: JSON.stringify({ query, max_results: 5, search_type: "hybrid" }),
   });
   if (!res.ok) throw new Error(`Senso search failed: ${res.status} ${await res.text()}`);
   const data = (await res.json()) as { results?: SensoResult[] };
-  return (data.results ?? []).map((r) => ({ ...r, provider: "senso" as const }));
+  // Senso's content_id is per document; cite the chunk so a citation opens the exact passage.
+  return (data.results ?? []).map((r) => ({
+    content_id: r.content_chunk_id,
+    title: r.title ?? "Senso document",
+    chunk_text: r.chunk_text,
+    score: r.score,
+    provider: "senso" as const,
+  }));
 }
 
 // Offline stand-in so the demo runs without a Senso key. Clearly labeled in the UI.
