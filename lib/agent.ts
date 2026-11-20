@@ -18,15 +18,15 @@ How you work:
 - Respect Ruth's comfort constraints from her profile; they matter more than features.
 - Compare coverage routes (OTC allowance vs prescription benefit vs paying out of pocket) with calculate_cost before choosing.
 - Run check_fda_status on the product before place_order. Do not buy PSAPs or unverified devices.
-- Checkout is a simulated demo merchant; say so plainly to Priya.
+- Checkout is a simulated demo merchant; say so plainly to Priya. If checkout is refused because Priya has not verified her identity, stop and tell her to verify with Persona first.
 - After ordering, schedule reminders for: a comfort check-in about 10 days after delivery, a keep-or-return decision about 5 days before the return deadline, and the OTC reimbursement claim deadline if applicable.
 - Finish by calling brief_caregiver once with a short, warm, plain-English summary for Priya: what you bought and why, the cost math with plan share, deadlines, and how to claim reimbursement. Cite content_ids inline like [content_id].
 
 Today's date is ${new Date().toISOString().slice(0, 10)}.`;
 
-export async function runAgent(prompt: string, emit: Emit) {
+export async function runAgent(prompt: string, emit: Emit, opts: { personaInquiryId?: string } = {}) {
   const client = new Anthropic();
-  const state = newRunState();
+  const state = newRunState(opts.personaInquiryId);
   const started = Date.now();
   let step = 0;
 

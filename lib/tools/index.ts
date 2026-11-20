@@ -10,9 +10,15 @@ export type RunState = {
   seenSourceIds: Set<string>;
   fdaChecked: Map<string, string>;
   orders: Record<string, unknown>[];
+  personaInquiryId?: string;
 };
 
-export const newRunState = (): RunState => ({ seenSourceIds: new Set(), fdaChecked: new Map(), orders: [] });
+export const newRunState = (personaInquiryId?: string): RunState => ({
+  seenSourceIds: new Set(),
+  fdaChecked: new Map(),
+  orders: [],
+  personaInquiryId,
+});
 
 type ToolResult = { output: unknown; sources: Source[]; ok: boolean };
 
@@ -228,7 +234,7 @@ export async function runTool(name: string, input: Record<string, any>, state: R
       if (!verdict) return { ok: false, sources: [], output: { error: "Refused: run check_fda_status on this sku first." } };
       if (verdict === "block")
         return { ok: false, sources: [], output: { error: "Refused: product is not an FDA hearing aid (PSAP)." } };
-      const caregiver = await verifyCaregiver(input.caregiver_name);
+      const caregiver = await verifyCaregiver(input.caregiver_name, state.personaInquiryId);
       if (!caregiver.verified)
         return { ok: false, sources: [], output: { error: "Refused: caregiver identity is not verified with Persona.", caregiver } };
       const today = new Date();

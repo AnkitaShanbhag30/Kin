@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AuditEvent, Source } from "@/lib/audit";
 import { DEMO_PROMPT } from "@/lib/demo";
 
@@ -8,7 +8,7 @@ type ToolEnd = Extract<AuditEvent, { kind: "tool_end" }>;
 type ToolStart = Extract<AuditEvent, { kind: "tool_start" }>;
 type Order = {
   order_id: string; merchant: string; name: string; real_retailer: string; product_url: string; total_usd: number;
-  payment_method: string; estimated_delivery: string; caregiver_verification: { verified: boolean; provider: string; status?: string }; return_by: string; otc_reimbursement_claim_by: string; return_window_days: number;
+  payment_method: string; estimated_delivery: string; caregiver_verification: { verified: boolean; provider: string; status?: string; environment?: string }; return_by: string; otc_reimbursement_claim_by: string; return_window_days: number;
 };
 type Cost = { name: string; route: string; list_price_usd: number | null; plan_pays_usd: number | null; family_pays_usd: number; cited_content_ids: string[] };
 type Reminder = { date: string; title: string; details: string };
@@ -26,6 +26,7 @@ export default function Home() {
   const [running, setRunning] = useState(false);
   const [openSource, setOpenSource] = useState<Source | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const persona = usePersona();
 
   async function run() {
     setEvents([]);
@@ -36,7 +37,7 @@ export default function Home() {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, personaInquiryId: persona.inquiryId }),
         signal: ac.signal,
       });
       const reader = res.body!.getReader();
@@ -108,6 +109,7 @@ export default function Home() {
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
         {/* Left: request + outcome */}
         <section className="space-y-4">
+          <PersonaCard persona={persona} />
           <Card>
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Caregiver request · Priya, for her mom Ruth</div>
             <textarea
@@ -184,7 +186,11 @@ export default function Home() {
                 <Row k="Claim OTC reimbursement by" v={view.order.otc_reimbursement_claim_by} />
                 <Row
                   k="Caregiver identity"
-                  v={view.order.caregiver_verification.provider === "persona" ? `Verified by Persona (${view.order.caregiver_verification.status})` : "Not verified (Persona not configured)"}
+                  v={
+                    view.order.caregiver_verification.provider === "persona"
+                      ? `Verified by Persona${view.order.caregiver_verification.environment === "sandbox" ? " sandbox" : ""} (${view.order.caregiver_verification.status})`
+                      : "Not verified (Persona not configured)"
+                  }
                 />
               </dl>
             </Card>
@@ -260,6 +266,79 @@ export default function Home() {
         </div>
       )}
     </div>
+  );
+}
+
+type PersonaStatus = { inquiry_id: string; status: string; verified: boolean; environment: string } | { error: string };
+const PERSONA_KEY = "kin.personaInquiryId";
+
+// Tracks the caregiver's Persona inquiry: picked up from Persona's redirect (?inquiry-id=) or pasted.
+function usePersona() {
+  const [inquiryId, setInquiryId] = useState<string>();
+  const [status, setStatus] = useState<PersonaStatus>();
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    let id = url.searchParams.get("inquiry-id") ?? undefined;
+    if (id) {
+      try { localStorage.setItem(PERSONA_KEY, id); } catch {}
+      window.history.replaceState(null, "", url.pathname);
+    } else {
+      try { id = localStorage.getItem(PERSONA_KEY) ?? undefined; } catch {}
+    }
+    setInquiryId(id);
+  }, []);
+  useEffect(() => {
+    if (!inquiryId) return setStatus(undefined);
+    fetch(`/api/persona/status?id=${encodeURIComponent(inquiryId)}`).then((r) => r.json()).then(setStatus, (e) => setStatus({ error: String(e) }));
+  }, [inquiryId]);
+  const set = (id?: string) => {
+    try { id ? localStorage.setItem(PERSONA_KEY, id) : localStorage.removeItem(PERSONA_KEY); } catch {}
+    setInquiryId(id);
+  };
+  return { inquiryId, status, set };
+}
+
+function PersonaCard({ persona }: { persona: ReturnType<typeof usePersona> }) {
+  const [draft, setDraft] = useState("");
+  const s = persona.status;
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wide text-stone-500">Caregiver identity</div>
+          <div className="mt-0.5 text-sm">
+            {!persona.inquiryId && "Priya verifies once with Persona so Kin can spend on Ruth's behalf."}
+            {persona.inquiryId && !s && "Checking with Persona…"}
+            {s && "error" in s && <span className="text-red-700">{s.error}</span>}
+            {s && !("error" in s) && (
+              <span>
+                Persona {s.environment === "sandbox" ? "sandbox " : ""}inquiry <span className="font-mono text-xs">{s.inquiry_id}</span>:{" "}
+                <b className={s.verified ? "text-emerald-700" : "text-amber-700"}>{s.status}</b>
+              </span>
+            )}
+          </div>
+        </div>
+        {s && !("error" in s) && s.verified ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <Pill tone="green">Verified</Pill>
+            <button onClick={() => persona.set(undefined)} className="text-xs text-stone-500 underline">reset</button>
+          </div>
+        ) : (
+          <a href="/api/persona/start" className="shrink-0 rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-medium hover:bg-stone-50">
+            Verify with Persona
+          </a>
+        )}
+      </div>
+      {!(s && !("error" in s) && s.verified) && (
+        <details className="mt-2 text-xs text-stone-500">
+          <summary className="cursor-pointer">Paste an inquiry ID instead</summary>
+          <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) persona.set(draft.trim()); }}>
+            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="inq_..." className="flex-1 rounded border border-stone-200 px-2 py-1 font-mono" />
+            <button className="rounded border border-stone-300 px-2">Use</button>
+          </form>
+        </details>
+      )}
+    </Card>
   );
 }
 

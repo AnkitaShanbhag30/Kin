@@ -47,7 +47,7 @@ The right-hand **Audit trail** shows every step live: the agent's progress notes
 | Sponsor | Role in Kin | Where |
 |---|---|---|
 | **Senso** (context layer) | The single source of trusted context: plan benefits, Medicare rules, FDA OTC rule, retailer return policies, merchant shipping, Ruth's care profile, **and every product listing**. Retrieved with `POST /org/search/context`; each claim cites a chunk (`content_chunk_id`) the caregiver can open in the trail. | `lib/tools/senso.ts`, `scripts/seed-senso.ts` |
-| **Persona** (identity) | Before the agent spends money, `place_order` re-checks that the human caregiver behind the agent completed a Persona verification inquiry. Unverified → order refused. | `lib/identity.ts` |
+| **Persona** (identity) | The caregiver verifies once through Persona's hosted flow from inside Kin. At checkout, `place_order` re-checks that inquiry's status with the Persona API (it never trusts the redirect params). Unverified → order refused, and the agent tells the caregiver to verify. The demo uses Persona **sandbox**, where the pass/fail result is simulated. | `lib/identity.ts`, `app/api/persona/*` |
 | **Amplitude** (analytics) | Every run streams product-analytics events: `kin_run_started`, `kin_tool_called` (tool, ok, latency, source count and provider), `kin_order_placed`, `kin_run_completed`, `kin_run_error`. That gives a funnel of where caregiver tasks succeed or stall. | `lib/analytics.ts` |
 
 Each integration degrades gracefully when its key is missing, and the header pills show what's live (`context: Senso | local fallback`, `identity: Persona | stub`, `analytics: Amplitude | off`).
@@ -62,7 +62,7 @@ Each integration degrades gracefully when its key is missing, and the header pil
 
 ```bash
 npm install
-cp .env.example .env.local   # add ANTHROPIC_API_KEY, SENSO_API_KEY, PERSONA_*, AMPLITUDE_API_KEY
+cp .env.example .env.local   # add ANTHROPIC_API_KEY, SENSO_API_KEY, PERSONA_API_KEY/TEMPLATE_ID/ENVIRONMENT_ID, AMPLITUDE_API_KEY
 npm run seed                 # push data/kb + product listings into Senso (once)
 npm run dev                  # http://localhost:3000
 npm run smoke                # headless run of the demo prompt + checks
