@@ -6,6 +6,8 @@ const PERSONA_HOSTED = "https://inquiry.withpersona.com/verify";
 export const CAREGIVER_REFERENCE_ID = "caregiver-priya-demo";
 
 const env = (k: string) => process.env[k]?.trim() || undefined;
+// Tolerate values pasted from a hosted-flow link (e.g. "itmpl_abc&environment-id=...").
+const idFrom = (k: string, prefix: string) => env(k)?.match(new RegExp(`${prefix}[A-Za-z0-9]+`))?.[0];
 
 // Persona is enforced only when the caregiver can actually complete it (hosted flow or a known inquiry).
 export const personaEnforced = () => Boolean(env("PERSONA_API_KEY") && (env("PERSONA_TEMPLATE_ID") || env("PERSONA_INQUIRY_ID")));
@@ -13,14 +15,14 @@ export const personaHostedFlow = () => Boolean(env("PERSONA_API_KEY") && env("PE
 export const identityProvider = () => (personaEnforced() ? "persona" : "stub");
 
 export function hostedFlowUrl(redirectUri: string) {
-  const template = env("PERSONA_TEMPLATE_ID");
+  const template = idFrom("PERSONA_TEMPLATE_ID", "itmpl_");
   if (!template) throw new Error("Set PERSONA_TEMPLATE_ID (itmpl_...) in .env.local");
   const params = new URLSearchParams({
     "inquiry-template-id": template,
     "reference-id": CAREGIVER_REFERENCE_ID,
     "redirect-uri": redirectUri,
   });
-  const envId = env("PERSONA_ENVIRONMENT_ID");
+  const envId = idFrom("PERSONA_ENVIRONMENT_ID", "env_");
   if (envId) params.set("environment-id", envId);
   return `${PERSONA_HOSTED}?${params}`;
 }
