@@ -201,7 +201,7 @@ export function KinApp({
             t.kind === "refill"
               ? `${t.title.replace(/^Refill\s+/i, "").replace(/\s*\(.*\)$/, "")} runs out`
               : t.kind === "book_appointment"
-                ? `Book by today: ${t.title.replace(/^Book (a |your )?/i, "")}`
+                ? `Last day to book: ${t.title.replace(/^Book (a |your )?/i, "")}`
                 : t.title,
           detail: `${t.place}. ${t.detail}`,
           time: t.time,
