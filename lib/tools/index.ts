@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import products from "@/data/products.json";
 import type { Source } from "../audit";
 import { verifyCaregiver } from "../identity";
+import { searchEmail } from "../inbox";
 import { searchTrustedContext } from "./senso";
 
 export type Product = (typeof products)[number];
@@ -11,13 +12,14 @@ export type RunState = {
   fdaChecked: Map<string, string>;
   orders: Record<string, unknown>[];
   personaInquiryId?: string;
+  gmailConnected?: boolean;
 };
 
-export const newRunState = (personaInquiryId?: string): RunState => ({
+export const newRunState = (opts: { personaInquiryId?: string; gmailConnected?: boolean } = {}): RunState => ({
   seenSourceIds: new Set(),
   fdaChecked: new Map(),
   orders: [],
-  personaInquiryId,
+  ...opts,
 });
 
 type ToolResult = { output: unknown; sources: Source[]; ok: boolean };
@@ -44,6 +46,17 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
     input_schema: {
       type: "object",
       properties: { query: { type: "string", description: "Natural-language question." } },
+      required: ["query"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "search_email",
+    description:
+      "Search the user's connected email (Gmail) for order confirmations, delivery notices, receipts, and medical or insurance messages. Use it to find when something was delivered so you can work out the return deadline.",
+    input_schema: {
+      type: "object",
+      properties: { query: { type: "string" } },
       required: ["query"],
       additionalProperties: false,
     },
@@ -101,9 +114,9 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
         sku: { type: "string" },
         payment_method: { type: "string", enum: ["hsa_card", "card_on_file"] },
         ship_to: { type: "string" },
-        caregiver_name: { type: "string" },
+        buyer_name: { type: "string" },
       },
-      required: ["sku", "payment_method", "ship_to", "caregiver_name"],
+      required: ["sku", "payment_method", "ship_to", "buyer_name"],
       additionalProperties: false,
     },
   },
@@ -124,7 +137,7 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: "brief_caregiver",
     description:
-      "Send the caregiver (Priya) the final brief: what was bought and why, the cost math, deadlines, and what to watch for with Ruth. Call once, last.",
+      "Post an update to the family chat for the caregiver: what was bought and why, the cost math with plan share, deadlines, and what to watch for. Call once after a purchase or important finding, only if a caregiver is in the family chat.",
     input_schema: {
       type: "object",
       properties: {
@@ -147,6 +160,19 @@ export async function runTool(name: string, input: Record<string, any>, state: R
         sources,
         output: sources.map(({ content_id, title, chunk_text }) => ({ content_id, title, chunk_text })),
       };
+    }
+
+    case "search_email": {
+      if (!state.gmailConnected) return { ok: false, sources: [], output: { error: "Gmail is not connected." } };
+      const emails = searchEmail(String(input.query));
+      const sources: Source[] = emails.map((e) => ({
+        content_id: `email:${e.id}`,
+        title: `${e.from}: ${e.subject}`,
+        chunk_text: `${e.date} — ${e.body}`,
+        provider: "email",
+      }));
+      sources.forEach((s) => state.seenSourceIds.add(s.content_id));
+      return { ok: true, sources, output: emails };
     }
 
     case "search_products": {
@@ -234,9 +260,9 @@ export async function runTool(name: string, input: Record<string, any>, state: R
       if (!verdict) return { ok: false, sources: [], output: { error: "Refused: run check_fda_status on this sku first." } };
       if (verdict === "block")
         return { ok: false, sources: [], output: { error: "Refused: product is not an FDA hearing aid (PSAP)." } };
-      const caregiver = await verifyCaregiver(input.caregiver_name, state.personaInquiryId);
+      const caregiver = await verifyCaregiver(input.buyer_name, state.personaInquiryId);
       if (!caregiver.verified)
-        return { ok: false, sources: [], output: { error: "Refused: caregiver identity is not verified with Persona.", caregiver } };
+        return { ok: false, sources: [], output: { error: "Refused: the buyer has not verified their identity with Persona.", caregiver } };
       const today = new Date();
       const delivery = day(today, 3);
       const order = {
@@ -254,7 +280,7 @@ export async function runTool(name: string, input: Record<string, any>, state: R
         return_window_days: p.return_window_days,
         return_by: day(new Date(delivery), p.return_window_days),
         otc_reimbursement_claim_by: day(today, 90),
-        caregiver_verification: caregiver,
+        buyer_verification: caregiver,
       };
       state.orders.push(order);
       return { ok: true, sources: [catalogSource(p)], output: order };

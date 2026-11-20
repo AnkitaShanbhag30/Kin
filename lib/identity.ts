@@ -5,22 +5,28 @@ const PERSONA_API = "https://api.withpersona.com/api/v1";
 const PERSONA_HOSTED = "https://inquiry.withpersona.com/verify";
 export const CAREGIVER_REFERENCE_ID = "caregiver-priya-demo";
 
-export const identityProvider = () => (process.env.PERSONA_API_KEY ? "persona" : "stub");
+const env = (k: string) => process.env[k]?.trim() || undefined;
+
+// Persona is enforced only when the caregiver can actually complete it (hosted flow or a known inquiry).
+export const personaEnforced = () => Boolean(env("PERSONA_API_KEY") && (env("PERSONA_TEMPLATE_ID") || env("PERSONA_INQUIRY_ID")));
+export const personaHostedFlow = () => Boolean(env("PERSONA_API_KEY") && env("PERSONA_TEMPLATE_ID"));
+export const identityProvider = () => (personaEnforced() ? "persona" : "stub");
 
 export function hostedFlowUrl(redirectUri: string) {
-  const template = process.env.PERSONA_TEMPLATE_ID;
+  const template = env("PERSONA_TEMPLATE_ID");
   if (!template) throw new Error("Set PERSONA_TEMPLATE_ID (itmpl_...) in .env.local");
   const params = new URLSearchParams({
     "inquiry-template-id": template,
     "reference-id": CAREGIVER_REFERENCE_ID,
     "redirect-uri": redirectUri,
   });
-  if (process.env.PERSONA_ENVIRONMENT_ID) params.set("environment-id", process.env.PERSONA_ENVIRONMENT_ID);
+  const envId = env("PERSONA_ENVIRONMENT_ID");
+  if (envId) params.set("environment-id", envId);
   return `${PERSONA_HOSTED}?${params}`;
 }
 
 export async function getInquiry(inquiryId: string) {
-  const key = process.env.PERSONA_API_KEY;
+  const key = env("PERSONA_API_KEY");
   if (!key) throw new Error("PERSONA_API_KEY not set");
   const res = await fetch(`${PERSONA_API}/inquiries/${encodeURIComponent(inquiryId)}`, {
     headers: { Authorization: `Bearer ${key}`, Accept: "application/json", "Key-Inflection": "kebab" },
@@ -39,10 +45,10 @@ export async function getInquiry(inquiryId: string) {
 }
 
 export async function verifyCaregiver(name: string, inquiryId?: string) {
-  if (!process.env.PERSONA_API_KEY) {
-    return { verified: true, name, provider: "stub" as const, note: "Persona not configured; verification skipped." };
+  if (!personaEnforced()) {
+    return { verified: true, name, provider: "stub" as const, note: "Persona not configured; verification simulated." };
   }
-  const id = inquiryId || process.env.PERSONA_INQUIRY_ID;
+  const id = inquiryId || env("PERSONA_INQUIRY_ID");
   if (!id) {
     return { verified: false, name, provider: "persona" as const, status: "not_started", note: "Caregiver has not completed Persona verification." };
   }

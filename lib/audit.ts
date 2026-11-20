@@ -3,7 +3,7 @@ export type Source = {
   title: string;
   chunk_text: string;
   score?: number;
-  provider: "senso" | "local-fallback" | "catalog";
+  provider: "senso" | "local-fallback" | "catalog" | "email";
 };
 
 export type AuditEvent =
@@ -41,11 +41,12 @@ export const newId = () => Math.random().toString(36).slice(2, 10);
 
 // Plain-English labels shown in the audit trail.
 export const TOOL_LABELS: Record<string, string> = {
-  search_trusted_context: "Looked up trusted context (plan, Medicare, FDA, returns, Ruth's profile)",
-  search_products: "Searched hearing aids that fit Ruth's needs",
-  check_fda_status: "Checked the device's FDA status",
-  calculate_cost: "Worked out what the family actually pays",
-  place_order: "Checked caregiver identity and placed the order (demo merchant)",
-  schedule_reminder: "Scheduled a reminder",
-  brief_caregiver: "Sent Priya a summary",
+  search_trusted_context: "Checked your plan and the rules",
+  search_email: "Checked your email",
+  search_products: "Looked for hearing aids that suit you",
+  check_fda_status: "Made sure it's a real FDA hearing aid",
+  calculate_cost: "Worked out what you'll pay",
+  place_order: "Confirmed it's you and placed the order (demo store)",
+  schedule_reminder: "Added a reminder",
+  brief_caregiver: "Updated your family",
 };

@@ -6,7 +6,7 @@ export const maxDuration = 300;
 
 // Streams AuditEvents as newline-delimited JSON so the UI renders the trail live.
 export async function POST(req: Request) {
-  const { prompt, personaInquiryId } = (await req.json()) as { prompt?: string; personaInquiryId?: string };
+  const { prompt, ...opts } = (await req.json()) as { prompt?: string } & Parameters<typeof runAgent>[2];
   if (!prompt?.trim()) return Response.json({ error: "prompt required" }, { status: 400 });
 
   const encoder = new TextEncoder();
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       await runAgent(prompt, (e) => {
         tracker.track(e);
         controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
-      }, { personaInquiryId });
+      }, opts);
       await tracker.flush();
       controller.close();
     },

@@ -2,7 +2,7 @@
 import { runAgent } from "../lib/agent";
 import { createRunTracker } from "../lib/analytics";
 import type { AuditEvent } from "../lib/audit";
-import { DEMO_PROMPT } from "../lib/demo";
+import { DEMO_CAREGIVER, DEMO_PROMPT, DEMO_USER } from "../lib/demo";
 
 async function main() {
   const events: AuditEvent[] = [];
@@ -13,7 +13,7 @@ async function main() {
     if (e.kind === "tool_end") console.log(`#${e.step} ${e.ok ? "ok " : "ERR"} ${e.tool} (${e.ms}ms) sources=${e.sources.length}`);
     else if (e.kind === "note") console.log(`   · ${e.text.slice(0, 140)}`);
     else if (e.kind === "error") console.log(`!! ${e.message}`);
-  });
+  }, { user: DEMO_USER, caregiver: { name: DEMO_CAREGIVER.name, relation: DEMO_CAREGIVER.relation }, gmailConnected: true });
 
   await tracker.flush();
   const ends = events.filter((e): e is Extract<AuditEvent, { kind: "tool_end" }> => e.kind === "tool_end");

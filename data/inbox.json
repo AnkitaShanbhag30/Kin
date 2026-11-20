@@ -1,0 +1,50 @@
+[
+  {
+    "id": "msg-audiology",
+    "from": "Bayview Audiology Clinic",
+    "subject": "Your visit summary from Nov 12",
+    "date": "2026-11-12",
+    "labels": ["medical"],
+    "body": "Hi Ruth, thank you for visiting. Your hearing test shows mild-to-moderate hearing loss in both ears. We recommend hearing aids. Over-the-counter hearing aids are a good fit for this level of loss. Bring them to your next visit and we can check the fit."
+  },
+  {
+    "id": "msg-amazon-order",
+    "from": "Amazon",
+    "subject": "Your order: SoundBoost Personal Sound Amplifier",
+    "date": "2026-11-03",
+    "labels": ["order"],
+    "retailer": "Amazon",
+    "item": "SoundBoost Personal Sound Amplifier",
+    "order_ref": "112-4471983",
+    "price_usd": 39.99,
+    "body": "Order 112-4471983. SoundBoost Personal Sound Amplifier, rechargeable. $39.99. Eligible for return within 30 days of delivery."
+  },
+  {
+    "id": "msg-amazon-delivered",
+    "from": "Amazon",
+    "subject": "Delivered: SoundBoost Personal Sound Amplifier",
+    "date": "2026-11-06",
+    "labels": ["delivered"],
+    "retailer": "Amazon",
+    "item": "SoundBoost Personal Sound Amplifier",
+    "order_ref": "112-4471983",
+    "return_window_days": 30,
+    "body": "Your package was delivered to your front door at 2:14 PM. Order 112-4471983. Return window: 30 days from delivery."
+  },
+  {
+    "id": "msg-aetna-anoc",
+    "from": "Aetna Medicare",
+    "subject": "Your hearing benefits for 2027",
+    "date": "2026-11-01",
+    "labels": ["insurance"],
+    "body": "Your Aetna Medicare Premier (HMO) plan includes an allowance for FDA-authorized over-the-counter hearing aids. See your Evidence of Coverage for details."
+  },
+  {
+    "id": "msg-newsletter",
+    "from": "Palo Alto Garden Club",
+    "subject": "November newsletter: winter pruning",
+    "date": "2026-11-15",
+    "labels": ["other"],
+    "body": "Join us on Saturday for a winter pruning walk."
+  }
+]

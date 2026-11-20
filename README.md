@@ -13,6 +13,16 @@ An adult child is helping a parent buy hearing aids. It's a high-stakes purchase
 - **It's a buy–try–return loop** with 30–180 day windows, and reimbursement deadlines on top.
 - **The market has traps.** $40 "hearing amplifiers" (PSAPs) and products that are only "FDA registered" sit next to real FDA-authorized OTC hearing aids.
 
+## The experience
+
+Kin is built for the older adult first, with family in the loop:
+
+- **Onboarding (before the app):** sign in (demo), confirm identity with **Persona**, then connect the insurance plan and **Gmail**.
+- **Today:** at most two things at a time, with one clear action each. Color only where it matters: red for deadlines, green for money back, amber for cautions. Typeset in Atkinson Hyperlegible, a typeface built for low-vision readers, at large sizes.
+- **Chat with Kin:** short, plain-language answers. The full reasoning lives in the **Activity** panel.
+- **Family chat:** invite a caregiver. Kin posts a fuller update there after it buys something, with every claim cited.
+- **Gmail (demo inbox):** Kin finds delivery emails and computes return deadlines. It also finds the audiologist's visit summary that starts the journey. Real Gmail access needs Google's restricted-scope review, so this demo reads a sample inbox (`data/inbox.json`).
+
 ## What Kin does (one task, end to end)
 
 Priya types one sentence: *"Mom's audiologist said she needs hearing aids. Her plan is Aetna Medicare Advantage. Find something she won't hate, figure out what it actually costs us, and buy it."*

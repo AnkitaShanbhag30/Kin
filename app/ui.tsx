@@ -1,0 +1,232 @@
+"use client";
+
+import type { Source } from "@/lib/audit";
+
+export const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+export function niceDate(iso: string) {
+  return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+export function daysFromNow(iso: string) {
+  return Math.ceil((new Date(iso + "T12:00:00").getTime() - Date.now()) / 86_400_000);
+}
+
+export function Button({
+  children,
+  onClick,
+  href,
+  kind = "primary",
+  disabled,
+  className = "",
+  type = "button",
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  href?: string;
+  kind?: "primary" | "secondary" | "ghost";
+  disabled?: boolean;
+  className?: string;
+  type?: "button" | "submit";
+}) {
+  const style = {
+    primary: "bg-ink text-white hover:bg-black",
+    secondary: "bg-soft text-ink hover:bg-line",
+    ghost: "text-ink underline underline-offset-4 hover:bg-soft",
+  }[kind];
+  const cls = `inline-flex min-h-12 items-center justify-center rounded-full px-6 text-base font-bold transition disabled:opacity-40 ${style} ${className}`;
+  if (href)
+    return (
+      <a href={href} className={cls}>
+        {children}
+      </a>
+    );
+  return (
+    <button type={type} onClick={onClick} disabled={disabled} className={cls}>
+      {children}
+    </button>
+  );
+}
+
+export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`rounded-2xl border border-line bg-white p-5 ${className}`}>{children}</div>;
+}
+
+type Tone = "neutral" | "brand" | "urgent" | "good" | "caution";
+const TONE: Record<Tone, string> = {
+  neutral: "bg-soft text-ink",
+  brand: "bg-brand-bg text-brand",
+  urgent: "bg-urgent-bg text-urgent",
+  good: "bg-good-bg text-good",
+  caution: "bg-caution-bg text-caution",
+};
+export function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?: Tone }) {
+  return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-bold ${TONE[tone]}`}>{children}</span>;
+}
+
+export function KinAvatar({ size = 40 }: { size?: number }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center justify-center rounded-xl bg-brand font-bold text-white"
+      style={{ width: size, height: size, fontSize: size * 0.45 }}
+      aria-hidden
+    >
+      K
+    </span>
+  );
+}
+
+export function PersonAvatar({ name, size = 40, tone = "bg-caution-bg text-caution" }: { name: string; size?: number; tone?: string }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold ${tone}`}
+      style={{ width: size, height: size, fontSize: size * 0.42 }}
+      aria-hidden
+    >
+      {name[0]}
+    </span>
+  );
+}
+
+export function SourceChip({ id, sources, onOpen }: { id: string; sources: Map<string, Source>; onOpen: (s: Source) => void }) {
+  const src = sources.get(id);
+  const tone = !src
+    ? "bg-soft text-muted"
+    : src.provider === "senso" || src.provider === "local-fallback"
+      ? "bg-brand-bg text-brand"
+      : src.provider === "email"
+        ? "bg-caution-bg text-caution"
+        : "bg-soft text-ink";
+  return (
+    <button
+      disabled={!src}
+      onClick={() => src && onOpen(src)}
+      title={src?.title}
+      className={`max-w-[15rem] truncate rounded-lg px-2 py-0.5 text-sm font-bold ${tone} hover:brightness-95`}
+    >
+      {src ? src.title.replace(/\s*\(DEMO.*$/, "").slice(0, 34) : "source"}
+    </button>
+  );
+}
+
+// Tiny renderer: paragraphs, bullets, tables, **bold**, and [content_id] citations as source chips.
+export function Markdown({ text, sources, onOpen }: { text: string; sources: Map<string, Source>; onOpen: (s: Source) => void }) {
+  const inline = (line: string) =>
+    line.split(/(\*\*[^*]+\*\*|\[[^\]]+\])/g).map((part, i) => {
+      if (part.startsWith("**")) return <b key={i}>{part.slice(2, -2)}</b>;
+      if (part.startsWith("[") && part.endsWith("]")) {
+        const ids = part.slice(1, -1).split(/,\s*/);
+        if (ids.every((id) => sources.has(id)))
+          return (
+            <span key={i} className="mx-0.5 inline-flex gap-1 align-middle">
+              {ids.map((id) => (
+                <SourceChip key={id} id={id} sources={sources} onOpen={onOpen} />
+              ))}
+            </span>
+          );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  return (
+    <div className="space-y-3 leading-relaxed">
+      {text.split(/\n{2,}/).map((block, i) => {
+        const lines = block.split("\n");
+        const tableAt = lines.findIndex((l, j) => l.trim().startsWith("|") && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[j + 1] ?? ""));
+        if (tableAt >= 0) {
+          const cells = (l: string) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+          const head = cells(lines[tableAt]);
+          const body = lines.slice(tableAt + 2).filter((l) => l.trim().startsWith("|")).map(cells);
+          return (
+            <div key={i} className="space-y-2">
+              {tableAt > 0 && <p>{inline(lines.slice(0, tableAt).join(" "))}</p>}
+              <table className="w-full">
+                <thead>
+                  <tr>{head.map((h, j) => <th key={j} className="border-b border-line py-1 pr-3 text-left">{inline(h)}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {body.map((r, j) => (
+                    <tr key={j}>{r.map((c, k) => <td key={k} className="border-b border-line py-1 pr-3 align-top">{inline(c)}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+        if (lines.every((l) => /^\s*[-*] /.test(l)))
+          return (
+            <ul key={i} className="list-disc space-y-1 pl-6">
+              {lines.map((l, j) => <li key={j}>{inline(l.replace(/^\s*[-*] /, ""))}</li>)}
+            </ul>
+          );
+        return (
+          <p key={i}>
+            {lines.map((l, j) => (
+              <span key={j}>
+                {j > 0 && <br />}
+                {inline(l.replace(/^#+\s*/, ""))}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+export function SourceDrawer({ source, onClose }: { source: Source | null; onClose: () => void }) {
+  if (!source) return null;
+  const label =
+    source.provider === "senso"
+      ? "From Senso (trusted context)"
+      : source.provider === "local-fallback"
+        ? "From local knowledge base (Senso offline)"
+        : source.provider === "email"
+          ? "From your email (demo inbox)"
+          : "From the store listing";
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
+      <aside className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <Pill tone={source.provider === "email" ? "caution" : "brand"}>{label}</Pill>
+          <Button kind="ghost" onClick={onClose}>Close</Button>
+        </div>
+        <h3 className="mt-4 text-xl font-bold">{source.title}</h3>
+        <p className="mt-4 whitespace-pre-wrap text-lg leading-relaxed">{source.chunk_text}</p>
+        <div className="mt-6 break-all font-mono text-xs text-muted">{source.content_id}</div>
+      </aside>
+    </div>
+  );
+}
+
+export function ics(r: { date: string; title: string; details: string }) {
+  const d = r.date.replaceAll("-", "");
+  return [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Kin//EN", "BEGIN:VEVENT",
+    `UID:${d}-${Math.random().toString(36).slice(2)}@kin`, `DTSTART;VALUE=DATE:${d}`,
+    `SUMMARY:${r.title}`, `DESCRIPTION:${r.details.replace(/\n/g, "\\n")}`, "END:VEVENT", "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+export function download(name: string, body: string, type: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([body], { type }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+export const store = {
+  get<T>(key: string): T | undefined {
+    try {
+      const v = localStorage.getItem(key);
+      return v ? (JSON.parse(v) as T) : undefined;
+    } catch {
+      return undefined;
+    }
+  },
+  set(key: string, value: unknown) {
+    try {
+      if (value === undefined) localStorage.removeItem(key);
+      else localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  },
+};
