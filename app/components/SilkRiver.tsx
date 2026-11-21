@@ -12,7 +12,8 @@ import { useEffect, useRef } from "react"
  *
  * <SilkRiver style={{ position: "absolute", inset: 0 }} />
  */
-const DEFAULT_IMAGE = "https://framerusercontent.com/images/zNonUd1Ipp6Ye9CbuEVJEv2X10.png"
+// Vendored locally (was loaded from framerusercontent.com at runtime).
+const DEFAULT_IMAGE = "/images/silk-texture.jpg"
 
 const DEFAULTS = {
     base: "#FCFAF6", soft: "#EAF2FA", main: "#CFE3F6", accent: "#F7E1CC", deep: "#B7D5F0",

@@ -210,7 +210,7 @@ export function SourceDrawer({ source, onClose }: { source: Source | null; onClo
         </div>
         <h3 className="mt-4 text-xl font-bold">{source.title}</h3>
         <p className="mt-4 whitespace-pre-wrap text-lg leading-relaxed">{source.chunk_text}</p>
-        <div className="mt-6 break-all font-mono text-xs text-on-surface-variant">{source.content_id}</div>
+        <div className="mt-6 break-all font-mono text-[16px] text-on-surface-variant">{source.content_id}</div>
       </aside>
     </div>
   );
