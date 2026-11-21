@@ -12,13 +12,20 @@ export async function searchTrustedContext(query: string): Promise<Source[]> {
   const key = process.env.SENSO_API_KEY;
   if (!key) return localSearch(query);
 
-  const res = await fetch(`${SENSO_BASE}/org/search/context`, {
-    method: "POST",
-    headers: { "X-API-Key": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ query, max_results: 5, search_type: "hybrid" }),
-  });
-  if (!res.ok) throw new Error(`Senso search failed: ${res.status} ${await res.text()}`);
-  const data = (await res.json()) as { results?: SensoResult[] };
+  let data: { results?: SensoResult[] };
+  try {
+    const res = await fetch(`${SENSO_BASE}/org/search/context`, {
+      method: "POST",
+      headers: { "X-API-Key": key.trim(), "Content-Type": "application/json" },
+      body: JSON.stringify({ query, max_results: 5, search_type: "hybrid" }),
+    });
+    if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
+    data = (await res.json()) as { results?: SensoResult[] };
+  } catch (err) {
+    // Keep the agent working on the same documents; sources are labeled "local-fallback", never "senso".
+    console.error("Senso search failed, using local knowledge base:", err instanceof Error ? err.message : err);
+    return localSearch(query);
+  }
   // Senso's content_id is per document; cite the chunk so a citation opens the exact passage.
   return (data.results ?? []).map((r) => ({
     content_id: r.content_chunk_id,
