@@ -34,11 +34,11 @@ export function Button({
   type?: "button" | "submit";
 }) {
   const style = {
-    primary: "bg-ink text-white hover:bg-black",
-    secondary: "bg-soft text-ink hover:bg-line",
-    ghost: "text-ink underline underline-offset-4 hover:bg-soft",
+    primary: "bg-primary text-on-primary hover:bg-primary-hover",
+    secondary: "border border-primary bg-surface text-primary hover:bg-primary-container-low",
+    ghost: "text-primary underline underline-offset-4 hover:bg-primary-container-low",
   }[kind];
-  const cls = `inline-flex min-h-12 items-center justify-center rounded-full px-6 text-base font-bold transition disabled:opacity-40 ${style} ${className}`;
+  const cls = `inline-flex min-h-12 items-center justify-center rounded-md px-6 text-[18px] font-bold transition disabled:opacity-45 ${style} ${className}`;
   if (href)
     return (
       <a href={href} className={cls}>
@@ -53,32 +53,26 @@ export function Button({
 }
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-line bg-white p-5 ${className}`}>{children}</div>;
+  return <div className={`rounded-lg border border-outline-variant bg-surface p-[24px] ${className}`}>{children}</div>;
 }
 
 type Tone = "neutral" | "brand" | "urgent" | "good" | "caution";
 const TONE: Record<Tone, string> = {
-  neutral: "bg-soft text-ink",
-  brand: "bg-brand-bg text-brand",
-  urgent: "bg-urgent-bg text-urgent",
-  good: "bg-good-bg text-good",
-  caution: "bg-caution-bg text-caution",
+  neutral: "bg-surface-container-high text-on-surface",
+  brand: "bg-primary-container text-on-primary-container",
+  urgent: "bg-error-container text-error",
+  good: "bg-success-container text-success",
+  caution: "bg-tertiary-container text-on-tertiary-container",
 };
 export function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?: Tone }) {
-  return <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1 text-sm font-bold ${TONE[tone]}`}>{children}</span>;
+  return <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm px-[12px] py-[4px] text-[16px] font-bold ${TONE[tone]}`}>{children}</span>;
 }
 
 export function KinAvatar({ size = 40 }: { size?: number }) {
   // Kin mark: two figures leaning into each other (a parent and a family member), in a soft rounded tile.
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" className="shrink-0" aria-hidden>
-      <defs>
-        <linearGradient id="kin-tile" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#14868e" />
-          <stop offset="1" stopColor="#0b6e75" />
-        </linearGradient>
-      </defs>
-      <rect width="48" height="48" rx="15" fill="url(#kin-tile)" />
+      <rect width="48" height="48" rx="8" fill="#0b6e75" />
       <circle cx="18.5" cy="17" r="5.5" fill="#ffffff" />
       <path d="M8 38c0-7.2 4.7-11.5 10.5-11.5S29 30.8 29 38z" fill="#ffffff" />
       <circle cx="30.5" cy="20" r="4.6" fill="#fbe3cf" />
@@ -87,7 +81,7 @@ export function KinAvatar({ size = 40 }: { size?: number }) {
   );
 }
 
-export function PersonAvatar({ name, size = 40, tone = "bg-caution-bg text-caution" }: { name: string; size?: number; tone?: string }) {
+export function PersonAvatar({ name, size = 40, tone = "bg-tertiary-container text-tertiary" }: { name: string; size?: number; tone?: string }) {
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold ${tone}`}
@@ -101,21 +95,31 @@ export function PersonAvatar({ name, size = 40, tone = "bg-caution-bg text-cauti
 
 export function SourceChip({ id, sources, onOpen }: { id: string; sources: Map<string, Source>; onOpen: (s: Source) => void }) {
   const src = sources.get(id);
+  const email = src?.provider === "email";
+  // Sources are smaller and lighter than tags, so they never compete with the fact they support.
   const tone = !src
-    ? "bg-soft text-muted"
-    : src.provider === "senso" || src.provider === "local-fallback"
-      ? "bg-brand-bg text-brand"
-      : src.provider === "email"
-        ? "bg-caution-bg text-caution"
-        : "bg-soft text-ink";
+    ? "border-dashed border-outline-variant bg-surface-container text-on-surface-muted"
+    : email
+      ? "border-outline-variant bg-tertiary-container text-on-tertiary-container"
+      : "border-source-outline bg-primary-container-low text-on-primary-container hover:bg-primary-container";
   return (
     <button
       disabled={!src}
       onClick={() => src && onOpen(src)}
       title={src?.title}
-      className={`max-w-[15rem] truncate rounded-lg px-2 py-0.5 text-sm font-bold ${tone} hover:brightness-95`}
+      className={`inline-flex h-[24px] max-w-[16em] items-center gap-[5px] rounded-sm border pl-[6px] pr-[8px] align-middle text-[14px] font-semibold tracking-[0.01em] ${tone}`}
     >
-      {src ? src.title.replace(/\s*\(DEMO.*$/, "").slice(0, 34) : "source"}
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden className="shrink-0">
+        {email ? (
+          <>
+            <rect x="1.5" y="2.5" width="9" height="7" rx="0.5" />
+            <path d="M2 3l4 3 4-3" />
+          </>
+        ) : (
+          <path d="M3 1h4l2 2v8H3z" />
+        )}
+      </svg>
+      <span className="truncate">{src ? src.title.replace(/\s*\(DEMO.*$/, "") : "Source not found"}</span>
     </button>
   );
 }
@@ -152,11 +156,11 @@ export function Markdown({ text, sources, onOpen }: { text: string; sources: Map
               {tableAt > 0 && <p>{inline(lines.slice(0, tableAt).join(" "))}</p>}
               <table className="w-full">
                 <thead>
-                  <tr>{head.map((h, j) => <th key={j} className="border-b border-line py-1 pr-3 text-left">{inline(h)}</th>)}</tr>
+                  <tr>{head.map((h, j) => <th key={j} className="border-b border-outline-variant py-1 pr-3 text-left">{inline(h)}</th>)}</tr>
                 </thead>
                 <tbody>
                   {body.map((r, j) => (
-                    <tr key={j}>{r.map((c, k) => <td key={k} className="border-b border-line py-1 pr-3 align-top">{inline(c)}</td>)}</tr>
+                    <tr key={j}>{r.map((c, k) => <td key={k} className="border-b border-outline-variant py-1 pr-3 align-top">{inline(c)}</td>)}</tr>
                   ))}
                 </tbody>
               </table>
@@ -195,15 +199,15 @@ export function SourceDrawer({ source, onClose }: { source: Source | null; onClo
           ? "From your email (demo inbox)"
           : "From the store listing";
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <aside className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-inverse-surface/40" onClick={onClose}>
+      <aside className="h-full w-full max-w-lg overflow-y-auto bg-surface p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <Pill tone={source.provider === "email" ? "caution" : "brand"}>{label}</Pill>
           <Button kind="ghost" onClick={onClose}>Close</Button>
         </div>
-        <h3 className="mt-4 text-xl font-bold">{source.title}</h3>
+        <h3 className="mt-4 font-serif text-[24px] font-semibold">{source.title}</h3>
         <p className="mt-4 whitespace-pre-wrap text-lg leading-relaxed">{source.chunk_text}</p>
-        <div className="mt-6 break-all font-mono text-xs text-muted">{source.content_id}</div>
+        <div className="mt-6 break-all font-mono text-xs text-on-surface-variant">{source.content_id}</div>
       </aside>
     </div>
   );
@@ -250,12 +254,12 @@ export function ProductImage({ sku, style, size = 120 }: { sku: string; style: s
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img src={`/products/${sku}.jpg`} alt="" width={size} height={size} onError={() => setFailed(true)}
-        className="shrink-0 rounded-2xl bg-soft object-contain" style={{ width: size, height: size }} />
+        className="shrink-0 rounded-lg bg-surface-container object-contain" style={{ width: size, height: size }} />
     );
   const bte = /behind/i.test(style);
   const canal = /canal/i.test(style) && !bte;
   return (
-    <div className="relative shrink-0 rounded-2xl bg-brand-bg" style={{ width: size, height: size }} title="Illustration of the device style">
+    <div className="relative shrink-0 rounded-lg bg-primary-container" style={{ width: size, height: size }} title="Illustration of the device style">
       <svg viewBox="0 0 100 100" className="h-full w-full" aria-label={`Illustration: ${style}`}>
         {bte ? (
           <>
@@ -276,7 +280,7 @@ export function ProductImage({ sku, style, size = 120 }: { sku: string; style: s
           </>
         )}
       </svg>
-      <span className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-bold text-brand">illustration</span>
+      <span className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-bold text-primary">illustration</span>
     </div>
   );
 }

@@ -17,7 +17,7 @@ export function Onboarding({ session, update, config }: { session: Session; upda
         {/* Left half: flush, edge-to-edge Silk River gradient with the photo floating on it. Top band on phones. */}
         <div className="relative flex items-center justify-center overflow-hidden px-6 py-8 sm:px-10 md:min-h-screen md:px-12 lg:px-16">
           <SilkRiver style={{ position: "absolute", inset: 0, zIndex: 0 }} {...SILK_COLORS} />
-          <div className="relative z-[1] h-56 w-full max-w-md overflow-hidden rounded-[2rem] shadow-[0_24px_60px_-28px_rgba(16,24,40,0.4)] sm:h-72 md:h-[min(72vh,640px)]">
+          <div className="relative z-[1] h-56 w-full max-w-md overflow-hidden rounded-lg shadow-[0_24px_60px_-28px_rgba(16,24,40,0.4)] sm:h-72 md:h-[min(72vh,640px)]">
             <img
               src="/images/onboarding-hug.jpg"
               alt="An older woman and her granddaughter hugging and laughing outdoors"
@@ -36,8 +36,8 @@ export function Onboarding({ session, update, config }: { session: Session; upda
 
           <div className="mb-6" role="group" aria-label="Setup progress">
             <div className="mb-2 flex items-baseline justify-between text-sm">
-              <span className="font-bold text-ink">{labels[idx]}</span>
-              <span className="text-muted">Step {idx + 1} of {labels.length}</span>
+              <span className="font-bold text-on-surface">{labels[idx]}</span>
+              <span className="text-on-surface-variant">Step {idx + 1} of {labels.length}</span>
             </div>
             <div
               className="h-2 w-full overflow-hidden rounded-full bg-white/70"
@@ -47,11 +47,11 @@ export function Onboarding({ session, update, config }: { session: Session; upda
               aria-valuenow={idx + 1}
               aria-valuetext={`Step ${idx + 1} of ${labels.length}: ${labels[idx]}`}
             >
-              <div className="h-full rounded-full bg-brand transition-[width] duration-700 ease-out" style={{ width: `${((idx + 1) / labels.length) * 100}%` }} />
+              <div className="h-full rounded-full bg-primary transition-[width] duration-700 ease-out" style={{ width: `${((idx + 1) / labels.length) * 100}%` }} />
             </div>
-            <ol className="mt-2 grid grid-cols-3 text-xs text-muted sm:text-sm">
+            <ol className="mt-2 grid grid-cols-3 text-xs text-on-surface-variant sm:text-sm">
               {labels.map((label, i) => (
-                <li key={label} className={`${i === 1 ? "text-center" : i === 2 ? "text-right" : ""} ${i <= idx ? "font-bold text-ink" : ""}`}>
+                <li key={label} className={`${i === 1 ? "text-center" : i === 2 ? "text-right" : ""} ${i <= idx ? "font-bold text-on-surface" : ""}`}>
                   {label}
                 </li>
               ))}
@@ -72,17 +72,17 @@ export function Onboarding({ session, update, config }: { session: Session; upda
 const SILK_COLORS = { base: "#F8F6F2", soft: "#E1ECF8", main: "#C3DAF2", accent: "#F7DCC6", deep: "#A6C7EC", saturation: 110 };
 
 // Softer, frosted card used by every step.
-const STEP_CARD = "rounded-[2rem] border-white/70 bg-white/80 p-6 shadow-[0_24px_60px_-32px_rgba(16,24,40,0.3)] backdrop-blur-xl sm:p-8";
+const STEP_CARD = "rounded-lg border-white/70 bg-white/80 p-6 shadow-[0_24px_60px_-32px_rgba(16,24,40,0.3)] backdrop-blur-xl sm:p-8";
 
 function Welcome({ session, onNext }: { session: Session; onNext: () => void }) {
   return (
     <Card className={STEP_CARD}>
-      <h1 className="text-3xl font-bold leading-tight">Help buying health things, with your family in the loop.</h1>
-      <p className="mt-3 text-lg text-muted">Kin checks your insurance, finds what suits you, buys it, and keeps track of returns.</p>
+      <h1 className="font-serif text-[28px] font-semibold leading-tight">Help buying health things, with your family in the loop.</h1>
+      <p className="mt-3 text-lg text-on-surface-variant">Kin checks your insurance, finds what suits you, buys it, and keeps track of returns.</p>
       <label className="mt-8 block text-base font-bold" htmlFor="email">Email</label>
-      <input id="email" readOnly value={session.user.email} className="mt-2 w-full rounded-xl border border-line px-4 py-3 text-lg" />
+      <input id="email" readOnly value={session.user.email} className="mt-2 w-full rounded-lg border border-outline-variant px-4 py-3 text-lg" />
       <Button className="mt-6 w-full" onClick={onNext}>Sign in as {session.user.firstName}</Button>
-      <p className="mt-3 text-center text-sm text-muted">Demo sign-in. No password is collected.</p>
+      <p className="mt-3 text-center text-sm text-on-surface-variant">Demo sign-in. No password is collected.</p>
     </Card>
   );
 }
@@ -114,13 +114,13 @@ function IdentityStep({ session, update, config }: { session: Session; update: (
   const verified = session.identity;
   return (
     <Card className={STEP_CARD}>
-      <h1 className="text-3xl font-bold">Confirm it&apos;s you</h1>
-      <p className="mt-3 text-lg text-muted">
+      <h1 className="font-serif text-[28px] font-semibold leading-tight">Confirm it&apos;s you</h1>
+      <p className="mt-3 text-lg text-on-surface-variant">
         Kin can spend money for you, so we check your identity once with Persona. Kin checks it again before every purchase.
       </p>
 
       {verified ? (
-        <div className="mt-6 rounded-xl bg-good-bg p-4 text-lg text-good">
+        <div className="mt-6 rounded-lg bg-success-container p-4 text-lg text-success">
           <b>✓ Identity confirmed</b>
           <div className="text-base">
             {verified.provider === "persona"
@@ -131,14 +131,14 @@ function IdentityStep({ session, update, config }: { session: Session; update: (
       ) : config?.personaHostedFlow ? (
         <>
           <Button href="/api/persona/start" className="mt-6 w-full">Verify with Persona</Button>
-          {status && "error" in status && <p className="mt-3 text-urgent">{status.error}</p>}
+          {status && "error" in status && <p className="mt-3 text-error">{status.error}</p>}
           {status && !("error" in status) && !status.verified && (
-            <p className="mt-3 text-caution">Persona says: {status.status}. Please try again.</p>
+            <p className="mt-3 text-tertiary">Persona says: {status.status}. Please try again.</p>
           )}
-          <details className="mt-4 text-base text-muted">
+          <details className="mt-4 text-base text-on-surface-variant">
             <summary className="cursor-pointer">Didn&apos;t come back here? Paste your inquiry ID</summary>
             <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) check(draft.trim()); }}>
-              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="inq_..." className="flex-1 rounded-xl border border-line px-3 py-2 font-mono" />
+              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="inq_..." className="flex-1 rounded-lg border border-outline-variant px-3 py-2 font-mono" />
               <Button type="submit" kind="secondary">Check</Button>
             </form>
           </details>
@@ -148,7 +148,7 @@ function IdentityStep({ session, update, config }: { session: Session; update: (
           <Button className="mt-6 w-full" onClick={() => update({ identity: { provider: "simulated", status: "simulated" } })}>
             Simulate Persona check
           </Button>
-          <p className="mt-3 text-center text-sm text-muted">Persona keys aren&apos;t set on this demo, so this step is simulated.</p>
+          <p className="mt-3 text-center text-sm text-on-surface-variant">Persona keys aren&apos;t set on this demo, so this step is simulated.</p>
         </>
       )}
 
@@ -162,8 +162,8 @@ function IdentityStep({ session, update, config }: { session: Session; update: (
 function ConnectStep({ session, update }: { session: Session; update: (s: Partial<Session>) => void }) {
   return (
     <Card className={STEP_CARD}>
-      <h1 className="text-3xl font-bold">Connect your accounts</h1>
-      <p className="mt-3 text-lg text-muted">So Kin knows what your plan covers, and can watch for deliveries and return dates.</p>
+      <h1 className="font-serif text-[28px] font-semibold leading-tight">Connect your accounts</h1>
+      <p className="mt-3 text-lg text-on-surface-variant">So Kin knows what your plan covers, and can watch for deliveries and return dates.</p>
 
       <div className="mt-6 space-y-3">
         <Row title="Insurance plan" detail={session.user.plan} right={<Pill tone="good">✓ Added</Pill>} />
@@ -179,7 +179,7 @@ function ConnectStep({ session, update }: { session: Session; update: (s: Partia
           }
         />
       </div>
-      <p className="mt-3 text-sm text-muted">Demo: Gmail uses a sample inbox. Real Gmail access needs Google&apos;s security review.</p>
+      <p className="mt-3 text-sm text-on-surface-variant">Demo: Gmail uses a sample inbox. Real Gmail access needs Google&apos;s security review.</p>
 
       <Button className="mt-8 w-full" onClick={() => update({ step: "done" })}>Open Kin</Button>
     </Card>
@@ -188,10 +188,10 @@ function ConnectStep({ session, update }: { session: Session; update: (s: Partia
 
 function Row({ title, detail, right }: { title: string; detail: string; right: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-line p-4">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-outline-variant p-4">
       <div>
         <div className="text-lg font-bold">{title}</div>
-        <div className="text-base text-muted">{detail}</div>
+        <div className="text-base text-on-surface-variant">{detail}</div>
       </div>
       {right}
     </div>

@@ -229,52 +229,52 @@ export function KinApp({
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-line bg-soft p-4 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-outline-variant bg-surface-container p-4 lg:flex">
         <div className="mb-6 flex items-center gap-3 px-2">
           <KinAvatar size={36} />
           <span className="text-xl font-bold">Kin</span>
         </div>
-        <NavItem active={view === "today"} onClick={() => setView("today")} icon="☀︎" label="Today" badge={urgentCount || undefined} />
-        <NavItem active={view === "calendar"} onClick={() => setView("calendar")} icon="📅" label="Calendar" />
-        <div className="mt-6 px-3 text-sm font-bold uppercase tracking-wide text-muted">Chats</div>
+        <NavItem active={view === "today"} onClick={() => setView("today")} icon="" label="Today" badge={urgentCount || undefined} />
+        <NavItem active={view === "calendar"} onClick={() => setView("calendar")} icon="" label="Calendar" />
+        <div className="mt-6 px-3 text-[14px] font-bold uppercase tracking-[0.08em] text-on-surface-variant">Chats</div>
         <NavItem active={view === "kin"} onClick={() => setView("kin")} icon={<KinAvatar size={26} />} label="Kin" />
         {session.caregiver ? (
           <NavItem active={view === "family"} onClick={() => setView("family")} icon={<PersonAvatar name={session.caregiver.firstName} size={26} />} label={`Family · ${session.caregiver.firstName}`} />
         ) : (
           <NavItem onClick={() => setInviteOpen(true)} icon="+" label="Invite family" />
         )}
-        <div className="mt-6 px-3 text-sm font-bold uppercase tracking-wide text-muted">Connected</div>
+        <div className="mt-6 px-3 text-[14px] font-bold uppercase tracking-[0.08em] text-on-surface-variant">Connected</div>
         <div className="space-y-1 px-3 py-1 text-base">
           <Conn ok label="Identity" detail={session.identity?.provider === "persona" ? "Persona" : "Simulated"} />
           <Conn ok label="Plan" detail="Aetna" />
           {session.gmail ? <Conn ok label="Gmail" detail="Demo inbox" /> : (
-            <button className="text-left font-bold text-brand underline" onClick={connectGmail}>Connect Gmail</button>
+            <button className="text-left font-bold text-primary underline" onClick={connectGmail}>Connect Gmail</button>
           )}
           {session.caregiver?.joined ? <Conn ok label="Family" detail={session.caregiver.firstName} /> : (
-            <button className="block text-left font-bold text-brand underline" onClick={() => setInviteOpen(true)}>Invite family</button>
+            <button className="block text-left font-bold text-primary underline" onClick={() => setInviteOpen(true)}>Invite family</button>
           )}
         </div>
-        <div className="mt-auto flex items-center gap-3 border-t border-line px-2 pt-4">
-          <PersonAvatar name={session.user.firstName} size={36} tone="bg-brand-bg text-brand" />
+        <div className="mt-auto flex items-center gap-3 border-t border-outline-variant px-2 pt-4">
+          <PersonAvatar name={session.user.firstName} size={36} tone="bg-primary-container text-primary" />
           <div className="flex-1">
             <div className="font-bold">{session.user.firstName}</div>
-            <button className="text-sm text-muted underline" onClick={signOut}>Sign out (reset demo)</button>
+            <button className="text-sm text-on-surface-variant underline" onClick={signOut}>Sign out (reset demo)</button>
           </div>
         </div>
       </aside>
 
       {/* Main */}
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-line bg-white/90 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-outline-variant bg-surface/90 px-4 py-3 backdrop-blur">
           <div className="flex gap-1 lg:hidden">
             {(["today", "calendar", "kin", "family"] as const).map((v) => (
               <button key={v} onClick={() => (v === "family" && !session.caregiver ? setInviteOpen(true) : setView(v))}
-                className={`rounded-full px-4 py-2 font-bold ${view === v ? "bg-ink text-white" : "bg-soft"}`}>
+                className={`min-h-12 rounded-md px-4 py-2 font-bold ${view === v ? "bg-primary text-on-primary" : "bg-surface-container"}`}>
                 {v === "today" ? "Today" : v === "calendar" ? "Calendar" : v === "kin" ? "Kin" : "Family"}
               </button>
             ))}
           </div>
-          <h1 className="hidden text-xl font-bold lg:block">
+          <h1 className="hidden font-serif text-[28px] font-semibold lg:block">
             {view === "today" ? "Today" : view === "calendar" ? "Calendar" : view === "kin" ? "Kin" : `Family · ${session.user.firstName}, ${session.caregiver?.firstName ?? ""} and Kin`}
           </h1>
           <Button kind="secondary" onClick={() => setPanel(panel ? null : { tab: "steps" })}>
@@ -321,10 +321,10 @@ export function KinApp({
 
 function NavItem({ active, onClick, icon, label, badge }: { active?: boolean; onClick: () => void; icon: React.ReactNode; label: string; badge?: number }) {
   return (
-    <button onClick={onClick} className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-lg ${active ? "bg-white font-bold shadow-sm" : "hover:bg-white/70"}`}>
-      <span className="flex w-7 justify-center text-xl">{icon}</span>
+    <button onClick={onClick} className={`flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left text-lg ${active ? "bg-surface font-bold shadow-[0_1px_2px_rgba(16,24,40,.06),0_1px_3px_rgba(16,24,40,.1)]" : "hover:bg-surface-container-high"}`}>
+      {icon ? <span className="flex w-7 justify-center text-xl">{icon}</span> : null}
       <span className="flex-1">{label}</span>
-      {badge ? <span className="rounded-full bg-urgent px-2 text-sm font-bold text-white">{badge}</span> : null}
+      {badge ? <span className="rounded-full bg-error px-2 text-[16px] font-bold text-on-error tabular-nums">{badge}</span> : null}
     </button>
   );
 }
@@ -332,9 +332,9 @@ function NavItem({ active, onClick, icon, label, badge }: { active?: boolean; on
 function Conn({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className={ok ? "text-good" : "text-muted"}>{ok ? "✓" : "○"}</span>
+      <span className={ok ? "text-success" : "text-on-surface-variant"}>{ok ? "✓" : "○"}</span>
       <span className="font-bold">{label}</span>
-      <span className="text-muted">{detail}</span>
+      <span className="text-on-surface-variant">{detail}</span>
     </div>
   );
 }
@@ -362,10 +362,10 @@ function Today({
         key: d.email_id,
         days: d.days_left,
         node: (
-          <Card className="border-urgent/30">
+          <Card className="border-error-outline">
             <Pill tone="urgent">{d.days_left} {d.days_left === 1 ? "day" : "days"} left • return by {longDate(d.return_by)}</Pill>
-            <h3 className="mt-3 text-2xl font-bold">{d.item}</h3>
-            <p className="mt-1 text-lg text-muted">Delivered {niceDate(d.delivered_on)} from {d.retailer}. <b className="text-ink">Found in your email.</b></p>
+            <h3 className="mt-3 font-serif text-[24px] font-semibold">{d.item}</h3>
+            <p className="mt-1 text-lg text-on-surface-variant">Delivered {niceDate(d.delivered_on)} from {d.retailer}. <b className="text-on-surface">Found in your email.</b></p>
             <KeepOrReturn
               item={d.item}
               onReturn={() => onAsk(`I don't like the ${d.item} I got from ${d.retailer}. When do I have to return it by, and can you help me return it?`)}
@@ -379,8 +379,7 @@ function Today({
     inbox?.care?.filter((t) => !dismissed.includes(t.email_id)).forEach((t) => {
       const done = reminded.includes(t.email_id);
       const tone = t.days_left <= 7 ? "urgent" : t.days_left <= 14 ? "caution" : "brand";
-      const icon = t.kind === "refill" ? "💊" : "📅";
-      const when = t.kind === "appointment" ? `${niceDate(t.due)}${t.time ? ` · ${t.time}` : ""}` : `By ${niceDate(t.due)}`;
+            const when = t.kind === "appointment" ? `${niceDate(t.due)}${t.time ? ` · ${t.time}` : ""}` : `By ${niceDate(t.due)}`;
       const ask =
         t.kind === "refill"
           ? `Please order my ${t.title.replace(/^Refill\s+/i, "")} refill before it runs out, and remind me and ${session.caregiver?.firstName ?? "my family"}.`
@@ -393,11 +392,11 @@ function Today({
         node: (
           <Card>
             <div className="flex flex-wrap gap-2">
-              <Pill tone={tone}>{icon} {when} · {t.days_left} days</Pill>
+              <Pill tone={tone}>{t.days_left} days • {when}</Pill>
               <Pill>From your email</Pill>
             </div>
-            <h3 className="mt-3 text-2xl font-bold">{t.title}</h3>
-            <p className="mt-1 text-lg text-muted">{t.place}. {t.detail}</p>
+            <h3 className="mt-3 font-serif text-[24px] font-semibold">{t.title}</h3>
+            <p className="mt-1 text-lg text-on-surface-variant">{t.place}. {t.detail}</p>
             <div className="mt-4 flex flex-wrap gap-3">
               {done ? (
                 <Pill tone="good">✓ Reminder set{session.caregiver?.joined ? ` for you and ${session.caregiver.firstName}` : ""}</Pill>
@@ -417,8 +416,8 @@ function Today({
         node: (
           <Card>
             <Pill tone="brand">From {m.from}</Pill>
-            <h3 className="mt-3 text-2xl font-bold">Your audiologist recommends hearing aids</h3>
-            <p className="mt-1 text-lg text-muted">Kin can find ones you&apos;ll wear and check what your Aetna plan pays.</p>
+            <h3 className="mt-3 font-serif text-[24px] font-semibold">Your audiologist recommends hearing aids</h3>
+            <p className="mt-1 text-lg text-on-surface-variant">Kin can find ones you&apos;ll wear and check what your Aetna plan pays.</p>
             <Button className="mt-4" onClick={() => onAsk(DEMO_PROMPT)}>Help me choose hearing aids</Button>
           </Card>
         ),
@@ -429,8 +428,8 @@ function Today({
       key: "gmail",
       node: (
         <Card>
-          <h3 className="text-2xl font-bold">Let Kin watch your deliveries</h3>
-          <p className="mt-1 text-lg text-muted">Connect Gmail and Kin will tell you when something arrives and when it must go back.</p>
+          <h3 className="font-serif text-[24px] font-semibold">Let Kin watch your deliveries</h3>
+          <p className="mt-1 text-lg text-on-surface-variant">Connect Gmail and Kin will tell you when something arrives and when it must go back.</p>
           <Button className="mt-4" onClick={onConnectGmail}>Connect Gmail</Button>
         </Card>
       ),
@@ -440,8 +439,8 @@ function Today({
       key: "invite",
       node: (
         <Card>
-          <h3 className="text-2xl font-bold">Bring your family in</h3>
-          <p className="mt-1 text-lg text-muted">Invite someone you trust. Kin keeps them updated so you don&apos;t have to.</p>
+          <h3 className="font-serif text-[24px] font-semibold">Bring your family in</h3>
+          <p className="mt-1 text-lg text-on-surface-variant">Invite someone you trust. Kin keeps them updated so you don&apos;t have to.</p>
           <Button className="mt-4" kind="secondary" onClick={onInvite}>Invite family</Button>
         </Card>
       ),
@@ -451,8 +450,8 @@ function Today({
   const visible = showAll ? cards : cards.slice(0, 2);
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <h2 className="text-3xl font-bold">{greeting}, {session.user.firstName}.</h2>
-      <p className="mt-1 text-lg text-muted">
+      <h2 className="font-serif text-[36px] font-semibold leading-tight">{greeting}, {session.user.firstName}.</h2>
+      <p className="mt-1 text-lg text-on-surface-variant">
         {cards.length ? `${cards.length === 1 ? "One thing" : `${cards.length} things`} for you today.` : "Nothing needs you today."}
       </p>
       <div className="mt-6 space-y-4">
@@ -482,11 +481,11 @@ function KeepOrReturn({ item, onReturn, onKeep }: { item: string; onReturn: () =
   }, [stage]);
   if (stage === "done")
     return (
-      <p role="status" className="mt-4 rounded-xl bg-good-bg p-4 text-lg font-bold text-good">✓ Done. Kin won&apos;t remind you about returning it.</p>
+      <p role="status" className="mt-4 rounded-lg bg-success-container p-4 text-lg font-bold text-success">✓ Done. Kin won&apos;t remind you about returning it.</p>
     );
   if (stage === "confirm")
     return (
-      <div className="mt-4 rounded-xl bg-soft p-4">
+      <div className="mt-4 rounded-lg bg-surface-container p-4">
         <p className="text-lg font-bold">Keep the {item}?</p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Button onClick={() => setStage("done")}>Yes, I&apos;m keeping it</Button>
@@ -515,12 +514,12 @@ function GmailConnectedCard({ onDone }: { onDone: () => void }) {
   }, []);
   return (
     <div role="status" className={`transition-opacity duration-700 ${fading ? "opacity-0" : "opacity-100"}`}>
-      <Card className="border-good/30">
+      <Card className="border-success/30">
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-good-bg text-lg font-bold text-good" aria-hidden>✓</span>
+          <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-container text-lg font-bold text-success" aria-hidden>✓</span>
           <div>
-            <h3 className="text-2xl font-bold">Gmail connected</h3>
-            <p className="mt-1 text-lg text-muted">Kin will tell you when something arrives and when it must go back.</p>
+            <h3 className="font-serif text-[24px] font-semibold">Gmail connected</h3>
+            <p className="mt-1 text-lg text-on-surface-variant">Kin will tell you when something arrives and when it must go back.</p>
           </div>
         </div>
       </Card>
@@ -545,20 +544,20 @@ function OrderCard({ order, chosen, onSteps }: { order: Order; chosen?: Cost; on
       {/* Celebration: a check that draws in (static when reduced motion is on), then a warm headline. */}
       <div className="flex items-center gap-3">
         <svg width="44" height="44" viewBox="0 0 44 44" className="kin-celebrate shrink-0" aria-hidden>
-          <circle cx="22" cy="22" r="20" className="fill-good-bg" />
-          <path d="M13 22.5l6 6 12-13" fill="none" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="kin-check stroke-good" />
+          <circle cx="22" cy="22" r="20" className="fill-success-container" />
+          <path d="M13 22.5l6 6 12-13" fill="none" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="kin-check stroke-success" />
         </svg>
-        <p className="text-2xl font-bold text-good">Your new hearing aids are on the way!</p>
+        <p className="text-2xl font-bold text-success">Your new hearing aids are on the way!</p>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Pill tone="good">✓ Ordered</Pill>
         <Pill tone="caution">Demo store · no real purchase</Pill>
       </div>
-      <h3 className="mt-3 text-2xl font-bold">{order.name}</h3>
+      <h3 className="mt-3 font-serif text-[24px] font-semibold">{order.name}</h3>
       {chosen && chosen.plan_pays_usd != null && (
-        <div className="mt-3 rounded-xl bg-good-bg p-4">
-          <div className="text-3xl font-bold text-good">You pay {usd(chosen.family_pays_usd)}</div>
-          <div className="text-lg text-good">Aetna pays you back {usd(chosen.plan_pays_usd)} of the {usd(order.total_usd)} price.</div>
+        <div className="mt-3 rounded-lg bg-success-container p-4">
+          <div className="font-serif text-[28px] font-semibold text-success tabular-nums">You pay {usd(chosen.family_pays_usd)}</div>
+          <div className="text-lg text-success">Aetna pays you back {usd(chosen.plan_pays_usd)} of the {usd(order.total_usd)} price.</div>
         </div>
       )}
       <ul className="mt-4 space-y-2">
@@ -570,16 +569,16 @@ function OrderCard({ order, chosen, onSteps }: { order: Order; chosen?: Cost; on
         ))}
       </ul>
       {chosen?.plan_pays_usd != null && (
-        <div className="mt-5 border-t border-line pt-4">
+        <div className="mt-5 border-t border-outline-variant pt-4">
           <h4 className="text-xl font-bold">Getting {usd(chosen.plan_pays_usd)} back from Aetna</h4>
           <ol className="mt-2 list-decimal space-y-1 pl-6 text-lg">
             {claimSteps.map((s) => <li key={s}>{s}</li>)}
           </ol>
         </div>
       )}
-      <p className="mt-4 rounded-xl bg-soft p-4 text-lg">Not sure about them? You can return them until <b>{longDate(order.return_by)}</b>.</p>
+      <p className="mt-4 rounded-lg bg-surface-container p-4 text-lg">Not sure about them? You can return them until <b>{longDate(order.return_by)}</b>.</p>
       {order.buyer_verification && (
-        <p className="mt-3 text-base text-muted">
+        <p className="mt-3 text-base text-on-surface-variant">
           {order.buyer_verification.provider === "persona"
             ? `✓ Confirmed it was you with Persona${order.buyer_verification.environment === "sandbox" ? " sandbox" : ""} before buying.`
             : "Identity check simulated for this demo."}
@@ -594,11 +593,11 @@ function OrderCard({ order, chosen, onSteps }: { order: Order; chosen?: Cost; on
 
 type CalEvent = { date: string; kind: "deadline" | "appointment" | "money" | "delivery" | "reminder"; title: string; detail?: string; time?: string };
 const KIND: Record<CalEvent["kind"], { icon: string; tone: string; label: string }> = {
-  deadline: { icon: "⏰", tone: "bg-urgent-bg text-urgent", label: "Deadline" },
-  appointment: { icon: "📅", tone: "bg-brand-bg text-brand", label: "Appointment" },
-  delivery: { icon: "📦", tone: "bg-soft text-ink", label: "Delivery" },
-  money: { icon: "$", tone: "bg-good-bg text-good", label: "Money back" },
-  reminder: { icon: "🔔", tone: "bg-caution-bg text-caution", label: "Reminder" },
+  deadline: { icon: "", tone: "bg-error-container text-error", label: "Deadline" },
+  appointment: { icon: "", tone: "bg-primary-container text-primary", label: "Appointment" },
+  delivery: { icon: "", tone: "bg-surface-container text-on-surface", label: "Delivery" },
+  money: { icon: "", tone: "bg-success-container text-success", label: "Money back" },
+  reminder: { icon: "", tone: "bg-tertiary-container text-tertiary", label: "Reminder" },
 };
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -621,7 +620,7 @@ function CalendarView({ events, gmail, onConnectGmail }: { events: CalEvent[]; g
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-3xl font-bold">{month.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</h2>
+        <h2 className="font-serif text-[28px] font-semibold">{month.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</h2>
         <div className="flex gap-2">
           <Button kind="secondary" onClick={() => shift(-1)} className="px-4" >‹ <span className="sr-only">Previous month</span></Button>
           <Button kind="secondary" onClick={() => { const d = new Date(); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); setSelected(today); }}>Today</Button>
@@ -630,12 +629,12 @@ function CalendarView({ events, gmail, onConnectGmail }: { events: CalEvent[]; g
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {Object.entries(KIND).map(([k, v]) => <span key={k} className={`rounded-full px-3 py-1 text-sm font-bold ${v.tone}`}>{v.icon} {v.label}</span>)}
+        {Object.entries(KIND).map(([k, v]) => <span key={k} className={`rounded-sm px-3 py-1 text-[16px] font-bold ${v.tone}`}>{v.label}</span>)}
       </div>
 
-      <div className="mt-4 grid grid-cols-7 overflow-hidden rounded-2xl border border-line">
+      <div className="mt-4 grid grid-cols-7 overflow-hidden rounded-lg border border-outline-variant">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="border-b border-line bg-soft py-2 text-center text-base font-bold">{d}</div>
+          <div key={d} className="border-b border-outline-variant bg-surface-container py-2 text-center text-base font-bold">{d}</div>
         ))}
         {days.slice(0, weeks * 7).map((d) => {
           const key = iso(d);
@@ -645,13 +644,13 @@ function CalendarView({ events, gmail, onConnectGmail }: { events: CalEvent[]; g
           const isSel = key === selected;
           return (
             <button key={key} onClick={() => setSelected(key)} aria-label={`${d.toDateString()}, ${evs.length} events`}
-              className={`min-h-24 border-b border-r border-line p-1.5 text-left align-top transition hover:bg-soft ${out ? "bg-soft/50 text-muted" : ""} ${isSel ? "ring-3 ring-inset ring-ink" : ""}`}>
-              <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-lg font-bold ${isToday ? "bg-ink text-white" : ""}`}>{d.getDate()}</span>
+              className={`min-h-24 border-b border-r border-outline-variant p-1.5 text-left align-top transition hover:bg-surface-container ${out ? "bg-surface-container/50 text-on-surface-variant" : ""} ${isSel ? "ring-3 ring-inset ring-primary" : ""}`}>
+              <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-lg font-bold ${isToday ? "bg-primary text-on-primary" : ""}`}>{d.getDate()}</span>
               <span className="mt-1 block space-y-1">
                 {evs.slice(0, 2).map((e, i) => (
-                  <span key={i} className={`block truncate rounded-md px-1.5 py-0.5 text-xs font-bold ${KIND[e.kind].tone}`}>{KIND[e.kind].icon} {e.title}</span>
+                  <span key={i} className={`block truncate rounded-md px-1.5 py-0.5 text-xs font-bold ${KIND[e.kind].tone}`}>{e.title}</span>
                 ))}
-                {evs.length > 2 && <span className="block text-xs font-bold text-muted">+{evs.length - 2} more</span>}
+                {evs.length > 2 && <span className="block text-xs font-bold text-on-surface-variant">+{evs.length - 2} more</span>}
               </span>
             </button>
           );
@@ -660,16 +659,16 @@ function CalendarView({ events, gmail, onConnectGmail }: { events: CalEvent[]; g
 
       <div className="mt-6 grid gap-6 md:grid-cols-2">
         <section>
-          <h3 className="text-xl font-bold">{selected === today ? "Today" : niceDate(selected)}</h3>
-          {dayEvents.length === 0 && <p className="mt-2 text-lg text-muted">Nothing on this day.</p>}
+          <h3 className="font-serif text-[24px] font-semibold">{selected === today ? "Today" : niceDate(selected)}</h3>
+          {dayEvents.length === 0 && <p className="mt-2 text-lg text-on-surface-variant">Nothing on this day.</p>}
           <ul className="mt-2 space-y-3">{dayEvents.map((e, i) => <EventRow key={i} e={e} />)}</ul>
         </section>
         <section>
-          <h3 className="text-xl font-bold">Coming up</h3>
+          <h3 className="font-serif text-[24px] font-semibold">Coming up</h3>
           {!gmail && (
-            <p className="mt-2 text-lg text-muted">
+            <p className="mt-2 text-lg text-on-surface-variant">
               Connect Gmail and Kin will add appointments, refills and return dates here.{" "}
-              <button className="font-bold text-brand underline" onClick={onConnectGmail}>Connect Gmail</button>
+              <button className="font-bold text-primary underline" onClick={onConnectGmail}>Connect Gmail</button>
             </p>
           )}
           <ul className="mt-2 space-y-3">{upcoming.map((e, i) => <EventRow key={i} e={e} showDate />)}</ul>
@@ -683,15 +682,15 @@ function EventRow({ e, showDate }: { e: CalEvent; showDate?: boolean }) {
   const k = KIND[e.kind];
   const left = daysFromNow(e.date);
   return (
-    <li className="flex gap-3 rounded-xl border border-line p-3">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${k.tone}`}>{k.icon}</span>
+    <li className="flex gap-3 rounded-lg border border-outline-variant p-3">
+      <span className={`w-1.5 shrink-0 rounded-sm ${k.tone}`} aria-hidden />
       <div className="min-w-0">
         <div className="text-lg font-bold leading-snug">{e.title}</div>
-        <div className="text-base text-muted">
+        <div className="text-base text-on-surface-variant">
           {showDate && `${niceDate(e.date)}${e.time ? ` · ${e.time}` : ""} · ${left === 0 ? "today" : left === 1 ? "tomorrow" : `in ${left} days`}`}
           {!showDate && e.time}
         </div>
-        {e.detail && <div className="text-base text-muted">{e.detail}</div>}
+        {e.detail && <div className="text-base text-on-surface-variant">{e.detail}</div>}
       </div>
     </li>
   );
@@ -748,8 +747,8 @@ function Chat({
   if (chat === "family" && !session.caregiver)
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
-        <h2 className="text-3xl font-bold">A chat for you, your family, and Kin</h2>
-        <p className="mt-3 text-lg text-muted">Kin posts updates here after it buys something, so your family always knows.</p>
+        <h2 className="font-serif text-[28px] font-semibold">A chat for you, your family, and Kin</h2>
+        <p className="mt-3 text-lg text-on-surface-variant">Kin posts updates here after it buys something, so your family always knows.</p>
         <Button className="mt-6" onClick={onInvite}>Invite family</Button>
       </div>
     );
@@ -777,7 +776,7 @@ function Chat({
           <div>
             <div className="flex items-center gap-3">
               <KinAvatar size={48} />
-              <h2 className="text-3xl font-bold">Hi {session.user.firstName}. What can I help with?</h2>
+              <h2 className="font-serif text-[28px] font-semibold">Hi {session.user.firstName}. What can I help with?</h2>
             </div>
             <div className="mt-6 grid gap-3">
               {[
@@ -785,7 +784,7 @@ function Chat({
                 ...(session.gmail ? ["When do I have to return the sound amplifier I bought?"] : []),
                 "What does my plan pay for hearing aids?",
               ].map((s) => (
-                <button key={s} onClick={() => onAsk(s)} className="rounded-2xl border border-line p-4 text-left text-lg hover:bg-soft">
+                <button key={s} onClick={() => onAsk(s)} className="rounded-lg border border-outline-variant p-4 text-left text-lg hover:bg-surface-container">
                   {s}
                 </button>
               ))}
@@ -794,16 +793,16 @@ function Chat({
         )}
 
         {messages.map((m) => {
-          if (m.from === "system") return <p key={m.id} className="text-center text-base text-muted">{m.text}</p>;
+          if (m.from === "system") return <p key={m.id} className="text-center text-base text-on-surface-variant">{m.text}</p>;
           if (m.from === "user" || (m.from === "caregiver" && m.text.startsWith("Approved.")))
             return m.from === "caregiver" ? (
               <div key={m.id} className="flex justify-end">
-                <div className="max-w-[85%] rounded-2xl rounded-br-md bg-caution-bg px-5 py-3 text-lg"><b>{session.caregiver?.firstName}:</b> {m.text}</div>
+                <div className="max-w-[85%] rounded-lg rounded-br-md bg-tertiary-container px-5 py-3 text-lg"><b>{session.caregiver?.firstName}:</b> {m.text}</div>
               </div>
             ) : (
               <div key={m.id} className="flex justify-end">
-                <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-5 py-3 text-lg text-white">
-                  {m.files?.map((f) => <div key={f} className="mb-1 text-base opacity-80">📎 {f}</div>)}
+                <div className="max-w-[85%] rounded-lg bg-inverse-surface px-5 py-3 text-[20px] text-on-inverse-surface">
+                  {m.files?.map((f) => <div key={f} className="mb-1 text-base opacity-80">Attached: {f}</div>)}
                   {m.text}
                 </div>
               </div>
@@ -816,7 +815,7 @@ function Chat({
               <div className="min-w-0 flex-1">
                 <div className="mb-1 font-bold">
                   {isCaregiver ? session.caregiver?.firstName : "Kin"}
-                  {m.headline && <span className="ml-2 font-normal text-muted">· update for the family</span>}
+                  {m.headline && <span className="ml-2 font-normal text-on-surface-variant">· update for the family</span>}
                 </div>
                 {m.headline && <div className="mb-2 text-xl font-bold">{m.headline}</div>}
                 <div className="text-lg">
@@ -825,13 +824,13 @@ function Chat({
                 {m.proposalRunId && proposalInRun(runs[m.proposalRunId]) && (
                   <div className="mt-4">
                     <ProposalCard p={proposalInRun(runs[m.proposalRunId])!} ordered={ordered} busy={!!running}
-                      buyLabel={`Approve this one as ${session.caregiver?.firstName} (demo)`} onBuy={(o) => onApprove(o, "caregiver")} />
+                      buyLabel={`Okay to order, as ${session.caregiver?.firstName} (demo)`} onBuy={(o) => onApprove(o, "caregiver")} />
                   </div>
                 )}
                 {m.runId && !order && proposalInRun(runs[m.runId]) && chat === "kin" && (
                   <div className="mt-4">
                     <ProposalCard p={proposalInRun(runs[m.runId])!} ordered={ordered} busy={!!running}
-                      buyLabel="Buy this one" onBuy={(o) => onApprove(o, "user")}
+                      buyLabel="Okay to order" onBuy={(o) => onApprove(o, "user")}
                       share={{ label: session.caregiver?.joined ? `Ask ${session.caregiver.firstName} to choose` : "Ask family to choose", onClick: () => onShare(m.runId!) }} />
                   </div>
                 )}
@@ -854,13 +853,13 @@ function Chat({
         {running && (
           <div className="flex gap-3">
             <KinAvatar />
-            <div className="flex-1 rounded-2xl bg-soft p-4">
+            <div className="flex-1 rounded-lg bg-surface-container p-4">
               <div className="text-lg font-bold">
                 {lastLabel && lastLabel.kind === "tool_start" ? `${lastLabel.label}…` : "Thinking…"}
               </div>
-              <div className="mt-1 flex items-center gap-3 text-base text-muted">
+              <div className="mt-1 flex items-center gap-3 text-base text-on-surface-variant">
                 <span className="inline-flex gap-1">
-                  {[0, 1, 2].map((i) => <span key={i} className="h-2 w-2 animate-pulse rounded-full bg-brand" style={{ animationDelay: `${i * 150}ms` }} />)}
+                  {[0, 1, 2].map((i) => <span key={i} className="h-2 w-2 animate-pulse rounded-full bg-primary" style={{ animationDelay: `${i * 150}ms` }} />)}
                 </span>
                 {steps} steps done
                 <button className="underline" onClick={() => onSteps(running)}>Watch</button>
@@ -872,21 +871,21 @@ function Chat({
         <div ref={bottom} />
       </div>
 
-      <form className="sticky bottom-0 bg-white pb-4 pt-2" onSubmit={(e) => { e.preventDefault(); send(); }}>
+      <form className="sticky bottom-0 bg-surface pb-4 pt-2" onSubmit={(e) => { e.preventDefault(); send(); }}>
         {files.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {files.map((f, i) => (
-              <span key={i} className="inline-flex items-center gap-2 rounded-full bg-brand-bg px-3 py-1 font-bold text-brand">
-                📎 {f.name}
-                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))}>✕</button>
+              <span key={i} className="inline-flex items-center gap-2 rounded-sm bg-primary-container px-3 py-1 font-bold text-on-primary-container">
+                Attached: {f.name}
+                <button type="button" className="underline" aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))}>Remove</button>
               </span>
             ))}
           </div>
         )}
-        <div className="flex items-end gap-2 rounded-3xl border border-line bg-soft p-2">
+        <div className="flex items-end gap-2 rounded-lg border border-outline-variant bg-surface-container p-2">
           <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf" multiple hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
           <button type="button" onClick={() => fileInput.current?.click()} aria-label="Add a photo or document"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl hover:bg-line">＋</button>
+            className="flex h-12 shrink-0 items-center justify-center rounded-md px-3 text-[18px] font-bold text-primary hover:bg-primary-container-low">+ File</button>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -896,8 +895,8 @@ function Chat({
             className="max-h-40 flex-1 resize-none bg-transparent px-3 py-2 text-lg outline-none"
           />
           <button type="button" onClick={dictate} aria-label="Speak instead of typing"
-            className={`flex h-12 shrink-0 items-center gap-2 rounded-full px-4 font-bold ${listening ? "bg-urgent text-white" : "hover:bg-line"}`}>
-            🎤 {listening ? "Listening…" : "Speak"}
+            className={`flex h-12 shrink-0 items-center gap-2 rounded-md px-4 font-bold ${listening ? "bg-error text-on-error" : "text-primary hover:bg-primary-container-low"}`}>
+            {listening ? "Listening…" : "Speak"}
           </button>
           <Button type="submit" disabled={!!running || (!draft.trim() && !files.length)}>Send</Button>
         </div>
@@ -935,24 +934,24 @@ function ProposalCard({ p, ordered, busy, buyLabel, onBuy, share }: {
       {options.filter((o) => !chosen || o.sku === chosen.sku).map((o) => {
         const pick = o.sku === p.recommended_sku;
         return (
-          <Card key={o.sku} className={pick && !chosen ? "border-2 border-brand" : ""}>
+          <Card key={o.sku} className={pick && !chosen ? "border-2 border-primary" : ""}>
             <div className="flex gap-4">
               <ProductImage sku={o.sku} style={o.style} size={104} />
               <div className="min-w-0">
                 <div className="flex flex-wrap gap-2">
-                  {pick && <Pill tone="brand">★ Kin&apos;s pick</Pill>}
+                  {pick && <Pill tone="brand">Kin&apos;s pick</Pill>}
                   <Pill>{o.label}</Pill>
                 </div>
-                <h3 className="mt-2 text-xl font-bold leading-tight">{o.name}</h3>
+                <h3 className="mt-2 font-serif text-[24px] font-semibold leading-tight">{o.name}</h3>
                 <p className="mt-1 text-lg">{o.reason}</p>
-                {o.tradeoff && <p className="mt-1 text-base text-caution">⚠ {o.tradeoff}</p>}
+                {o.tradeoff && <p className="mt-1 text-base text-on-tertiary-container"><b>Downside:</b> {o.tradeoff}</p>}
               </div>
             </div>
             <Ratings o={o} />
             <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <div className="text-2xl font-bold text-good">You pay {usd(o.family_pays_usd)}</div>
-                <div className="text-base text-muted">
+                <div className="font-serif text-[28px] font-semibold text-success tabular-nums">You pay {usd(o.family_pays_usd)}</div>
+                <div className="text-base text-on-surface-variant">
                   {o.plan_pays_usd > 0 ? `Aetna pays back ${usd(o.plan_pays_usd)} · ` : ""}{o.return_window_days} days to return · FDA hearing aid ✓
                 </div>
               </div>
@@ -967,17 +966,17 @@ function ProposalCard({ p, ordered, busy, buyLabel, onBuy, share }: {
       })}
       {!chosen && !more && (
         <Button kind="secondary" className="w-full" disabled={loadingMore} onClick={showMore}>
-          {loadingMore ? "Finding more…" : "Show more options"}
+          {loadingMore ? "Finding more…" : "See more choices"}
         </Button>
       )}
       {!chosen && more && (
-        <p className="text-base text-muted">
+        <p className="text-base text-on-surface-variant">
           {more.options.length ? `Showing ${more.options.length} more.` : "No other hearing aids to show."}
           {more.hidden_not_fda > 0 && ` ${more.hidden_not_fda} more were left out because they aren't FDA hearing aids.`}
         </p>
       )}
       {!chosen && share && <Button kind="ghost" className="-ml-4" disabled={busy} onClick={share.onClick}>{share.label}</Button>}
-      <p className="text-sm text-muted">Nothing is bought until someone taps to approve. Demo store: no real purchase.</p>
+      <p className="text-sm text-on-surface-variant">Nothing is bought until someone taps to approve. Demo store: no real purchase.</p>
     </div>
   );
 }
@@ -1013,8 +1012,8 @@ function Ratings({ o }: { o: Option }) {
   return (
     <dl className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
       {scoresFor(o).map((r) => {
-        const color = r.score >= 4 ? "bg-good" : r.score === 3 ? "bg-caution" : "bg-urgent";
-        const text = r.score >= 4 ? "text-good" : r.score === 3 ? "text-caution" : "text-urgent";
+        const color = r.score >= 4 ? "bg-success" : r.score === 3 ? "bg-tertiary" : "bg-error";
+        const text = r.score >= 4 ? "text-success" : r.score === 3 ? "text-tertiary" : "text-error";
         return (
           <div key={r.label}>
             <dt className="flex items-baseline justify-between gap-2">
@@ -1024,10 +1023,10 @@ function Ratings({ o }: { o: Option }) {
             <dd>
               <span className="mt-1 flex gap-1" role="img" aria-label={`${r.label}: ${r.score} out of 5, ${WORD[r.score]}`}>
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <span key={i} className={`h-2.5 flex-1 rounded-full ${i <= r.score ? color : "bg-line"}`} />
+                  <span key={i} className={`h-2.5 flex-1 rounded-full ${i <= r.score ? color : "bg-outline-variant"}`} />
                 ))}
               </span>
-              <span className="text-sm text-muted">{r.why}</span>
+              <span className="text-sm text-on-surface-variant">{r.why}</span>
             </dd>
           </div>
         );
@@ -1038,9 +1037,9 @@ function Ratings({ o }: { o: Option }) {
 
 function RatingKey() {
   return (
-    <p className="text-base text-muted">
-      More filled bars is better. <span className="font-bold text-good">Great/Good</span> ·{" "}
-      <span className="font-bold text-caution">OK</span> · <span className="font-bold text-urgent">Fair/Poor</span>
+    <p className="text-base text-on-surface-variant">
+      More filled bars is better. <span className="font-bold text-success">Great/Good</span> ·{" "}
+      <span className="font-bold text-tertiary">OK</span> · <span className="font-bold text-error">Fair/Poor</span>
     </p>
   );
 }
@@ -1054,33 +1053,33 @@ function ActionCards({ events }: { events?: AuditEvent[] }) {
         if (e.tool === "request_refill")
           return (
             <Card key={e.id} className="mt-4">
-              <div className="flex flex-wrap gap-2"><Pill tone="good">💊 Refill requested</Pill><Pill tone="caution">Demo</Pill></div>
-              <h3 className="mt-2 text-2xl font-bold">{o.medication}</h3>
-              <p className="mt-1 text-lg">Ready at {o.pharmacy} by <b className="text-urgent">{niceDate(o.ready_by)}</b>. Same medicine and dose.</p>
+              <div className="flex flex-wrap gap-2"><Pill tone="good">✓ Refill requested</Pill><Pill tone="caution">Demo</Pill></div>
+              <h3 className="mt-2 font-serif text-[24px] font-semibold">{o.medication}</h3>
+              <p className="mt-1 text-lg">Ready at {o.pharmacy} by <b className="text-error">{niceDate(o.ready_by)}</b>. Same medicine and dose.</p>
             </Card>
           );
         if (e.tool === "request_appointment")
           return (
             <Card key={e.id} className="mt-4">
-              <div className="flex flex-wrap gap-2"><Pill tone="good">📅 Appointment requested</Pill><Pill tone="caution">Demo</Pill></div>
-              <h3 className="mt-2 text-2xl font-bold">{o.visit}</h3>
-              <p className="mt-1 text-lg">{o.clinic} will call to confirm a time before <b className="text-urgent">{niceDate(o.book_by)}</b>. Asked for: {o.preferences}.</p>
+              <div className="flex flex-wrap gap-2"><Pill tone="good">✓ Appointment requested</Pill><Pill tone="caution">Demo</Pill></div>
+              <h3 className="mt-2 font-serif text-[24px] font-semibold">{o.visit}</h3>
+              <p className="mt-1 text-lg">{o.clinic} will call to confirm a time before <b className="text-error">{niceDate(o.book_by)}</b>. Asked for: {o.preferences}.</p>
             </Card>
           );
         return e.tool === "start_return" ? (
           <Card key={e.id} className="mt-4">
             <div className="flex flex-wrap gap-2"><Pill tone="good">✓ Return started</Pill><Pill tone="caution">Demo</Pill></div>
-            <h3 className="mt-2 text-2xl font-bold">{o.item}</h3>
-            <div className="mt-2 text-3xl font-bold text-good">{usd(o.refund_usd)} back</div>
-            <p className="mt-2 text-lg">Drop it off by <b className="text-urgent">{niceDate(o.return_by)}</b>. {o.drop_off}</p>
-            <p className="mt-1 text-base text-muted">Return number {o.return_id} · refund in {o.refund_timing}</p>
+            <h3 className="mt-2 font-serif text-[24px] font-semibold">{o.item}</h3>
+            <div className="mt-2 font-serif text-[28px] font-semibold text-success tabular-nums">{usd(o.refund_usd)} back</div>
+            <p className="mt-2 text-lg">Drop it off by <b className="text-error">{niceDate(o.return_by)}</b>. {o.drop_off}</p>
+            <p className="mt-1 text-base text-on-surface-variant">Return number {o.return_id} · refund in {o.refund_timing}</p>
           </Card>
         ) : (
           <Card key={e.id} className="mt-4">
             <div className="flex flex-wrap gap-2"><Pill tone="good">Claim form filled in</Pill><Pill tone="caution">Demo · not sent</Pill></div>
-            <h3 className="mt-2 text-2xl font-bold">Get {usd(o.claim_amount_usd)} back from Aetna</h3>
-            <p className="mt-1 text-lg">{o.form} for {o.member}. Receipt attached. Send it by <b className="text-urgent">{niceDate(o.submit_by)}</b>.</p>
-            <p className="mt-1 text-base text-muted">Draft {o.claim_id}</p>
+            <h3 className="mt-2 font-serif text-[24px] font-semibold">Get {usd(o.claim_amount_usd)} back from Aetna</h3>
+            <p className="mt-1 text-lg">{o.form} for {o.member}. Receipt attached. Send it by <b className="text-error">{niceDate(o.submit_by)}</b>.</p>
+            <p className="mt-1 text-base text-on-surface-variant">Draft {o.claim_id}</p>
           </Card>
         );
       })}
@@ -1110,18 +1109,18 @@ function ActivityPanel({
   const done = events.find((e) => e.kind === "done");
 
   return (
-    <aside className="fixed inset-0 z-40 flex flex-col bg-white lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-[400px] lg:shrink-0 lg:border-l lg:border-line">
-      <div className="flex items-center justify-between border-b border-line p-4">
+    <aside className="fixed inset-0 z-40 flex flex-col bg-surface lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-[400px] lg:shrink-0 lg:border-l lg:border-outline-variant">
+      <div className="flex items-center justify-between border-b border-outline-variant p-4">
         <div>
-          <h2 className="text-2xl font-bold">Activity</h2>
-          <p className="text-base text-muted">What Kin did, step by step</p>
+          <h2 className="font-serif text-[28px] font-semibold">Activity</h2>
+          <p className="text-base text-on-surface-variant">What Kin did, step by step</p>
         </div>
         <Button kind="ghost" onClick={() => setPanel(null)}>Close</Button>
       </div>
       <div className="flex gap-2 px-4 pt-3">
         {(["steps", "reminders"] as const).map((t) => (
           <button key={t} onClick={() => setPanel({ ...panel, tab: t })}
-            className={`rounded-full px-4 py-2 font-bold ${panel.tab === t ? "bg-ink text-white" : "bg-soft"}`}>
+            className={`min-h-12 rounded-md px-4 py-2 font-bold ${panel.tab === t ? "bg-primary text-on-primary" : "bg-surface-container"}`}>
             {t === "steps" ? "Steps" : `Reminders${reminders.length ? ` (${reminders.length})` : ""}`}
           </button>
         ))}
@@ -1130,29 +1129,29 @@ function ActivityPanel({
       <div className="flex-1 overflow-y-auto p-4">
         {panel.tab === "steps" && (
           <>
-            {!events.length && <p className="text-lg text-muted">When Kin works on something, every lookup, source and action shows up here.</p>}
+            {!events.length && <p className="text-lg text-on-surface-variant">When Kin works on something, every lookup, source and action shows up here.</p>}
             <ol className="space-y-4">
               {events.map((e) => {
-                if (e.kind === "note") return <li key={e.id} className="border-l-4 border-brand-bg pl-3 text-base italic text-muted">{e.text}</li>;
-                if (e.kind === "error") return <li key={e.id} className="rounded-xl bg-urgent-bg p-3 text-urgent">{e.message}</li>;
+                if (e.kind === "note") return <li key={e.id} className="border-l-4 border-primary-container pl-3 text-base italic text-on-surface-variant">{e.text}</li>;
+                if (e.kind === "error") return <li key={e.id} className="rounded-lg bg-error-container p-3 text-error">{e.message}</li>;
                 if (e.kind !== "tool_start") return null;
                 const end = ended.get(e.id);
                 return (
                   <li key={e.id} className="flex gap-3">
-                    <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${!end ? "animate-pulse bg-line" : end.ok ? "bg-good-bg text-good" : "bg-urgent-bg text-urgent"}`}>
+                    <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${!end ? "animate-pulse bg-outline-variant" : end.ok ? "bg-success-container text-success" : "bg-error-container text-error"}`}>
                       {end ? (end.ok ? "✓" : "!") : e.step}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="text-lg font-bold leading-snug">{e.label}</div>
-                      <div className="text-base text-muted">{summarize(e.tool, e.input, end?.output)}</div>
+                      <div className="text-base text-on-surface-variant">{summarize(e.tool, e.input, end?.output)}</div>
                       {end && end.sources.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {end.sources.slice(0, 4).map((s) => <SourceChip key={s.content_id} id={s.content_id} sources={sources} onOpen={onOpenSource} />)}
                         </div>
                       )}
-                      <details className="mt-1 text-sm text-muted">
+                      <details className="mt-1 text-sm text-on-surface-variant">
                         <summary className="cursor-pointer">Details</summary>
-                        <pre className="mt-1 max-h-60 overflow-auto rounded-lg bg-soft p-2 text-xs">{JSON.stringify({ input: e.input, output: end?.output }, null, 2)}</pre>
+                        <pre className="mt-1 max-h-60 overflow-auto rounded-lg bg-surface-container p-2 text-xs">{JSON.stringify({ input: e.input, output: end?.output }, null, 2)}</pre>
                       </details>
                     </div>
                   </li>
@@ -1160,7 +1159,7 @@ function ActivityPanel({
               })}
             </ol>
             {done && done.kind === "done" && (
-              <div className="mt-6 flex items-center justify-between border-t border-line pt-4 text-base text-muted">
+              <div className="mt-6 flex items-center justify-between border-t border-outline-variant pt-4 text-base text-on-surface-variant">
                 <span>{done.steps} steps · {(done.ms / 1000).toFixed(0)}s</span>
                 <Button kind="secondary" onClick={() => download("kin-activity.json", JSON.stringify(events, null, 2), "application/json")}>Save record</Button>
               </div>
@@ -1170,16 +1169,16 @@ function ActivityPanel({
 
         {panel.tab === "reminders" && (
           <ul className="space-y-3">
-            {!reminders.length && <p className="text-lg text-muted">No reminders yet.</p>}
+            {!reminders.length && <p className="text-lg text-on-surface-variant">No reminders yet.</p>}
             {reminders.map((r, i) => (
-              <li key={i} className="rounded-xl border border-line p-4">
+              <li key={i} className="rounded-lg border border-outline-variant p-4">
                 <Pill tone={/return/i.test(r.title) ? "urgent" : /claim|reimburse/i.test(r.title) ? "good" : "brand"}>{niceDate(r.date)}</Pill>
                 <div className="mt-2 text-lg font-bold">{r.title}</div>
-                <div className="text-base text-muted">{r.details}</div>
+                <div className="text-base text-on-surface-variant">{r.details}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                   <Button kind="ghost" className="-ml-4" onClick={() => download(`kin-${r.date}.ics`, ics(r), "text/calendar")}>Add to my calendar</Button>
                   {notified.includes(`${r.date}|${r.title}`) ? (
-                    <span role="status" className="font-bold text-good">✓ We&apos;ll remind you {niceDate(r.date)} (demo)</span>
+                    <span role="status" className="font-bold text-success">✓ We&apos;ll remind you {niceDate(r.date)} (demo)</span>
                   ) : (
                     <Button kind="ghost" onClick={() => onNotify(`${r.date}|${r.title}`)}>Notify me</Button>
                   )}
@@ -1191,8 +1190,8 @@ function ActivityPanel({
       </div>
 
       {config && (
-        <div className="border-t border-line p-4 text-sm text-muted">
-          <div className="font-bold text-ink">Powered by</div>
+        <div className="border-t border-outline-variant p-4 text-sm text-on-surface-variant">
+          <div className="font-bold text-on-surface">Powered by</div>
           <div>Trusted context: {config.context === "senso" ? "Senso ✓" : "local fallback"}</div>
           <div>Identity: {config.identity === "persona" ? "Persona ✓" : "simulated"}</div>
           <div>Analytics: {config.analytics === "amplitude" ? "Amplitude ✓" : "off"}</div>
@@ -1223,21 +1222,21 @@ function summarize(tool: string, input: any, output: any): string {
 
 function InviteModal({ onClose, onInvite }: { onClose: () => void; onInvite: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-lg bg-surface p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-2xl font-bold">Invite family</h2>
-        <p className="mt-1 text-lg text-muted">They&apos;ll join a chat with you and Kin.</p>
+        <p className="mt-1 text-lg text-on-surface-variant">They&apos;ll join a chat with you and Kin.</p>
         <label className="mt-5 block font-bold">Name</label>
-        <input readOnly value={DEMO_CAREGIVER.name} className="mt-1 w-full rounded-xl border border-line px-4 py-3 text-lg" />
+        <input readOnly value={DEMO_CAREGIVER.name} className="mt-1 w-full rounded-lg border border-outline-variant px-4 py-3 text-lg" />
         <label className="mt-3 block font-bold">Email</label>
-        <input readOnly value={DEMO_CAREGIVER.email} className="mt-1 w-full rounded-xl border border-line px-4 py-3 text-lg" />
+        <input readOnly value={DEMO_CAREGIVER.email} className="mt-1 w-full rounded-lg border border-outline-variant px-4 py-3 text-lg" />
         <label className="mt-3 block font-bold">They are your</label>
-        <input readOnly value={DEMO_CAREGIVER.relation} className="mt-1 w-full rounded-xl border border-line px-4 py-3 text-lg" />
+        <input readOnly value={DEMO_CAREGIVER.relation} className="mt-1 w-full rounded-lg border border-outline-variant px-4 py-3 text-lg" />
         <div className="mt-6 flex gap-3">
           <Button onClick={onInvite} className="flex-1">Send invite</Button>
           <Button kind="secondary" onClick={onClose}>Cancel</Button>
         </div>
-        <p className="mt-3 text-sm text-muted">Demo: no email is sent.</p>
+        <p className="mt-3 text-sm text-on-surface-variant">Demo: no email is sent.</p>
       </div>
     </div>
   );

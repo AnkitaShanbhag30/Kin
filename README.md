@@ -18,7 +18,8 @@ An adult child is helping a parent buy hearing aids. It's a high-stakes purchase
 Kin is built for the older adult first, with family in the loop:
 
 - **Onboarding (before the app):** sign in (demo), confirm identity with **Persona**, then connect the insurance plan and **Gmail**.
-- **Today:** at most two things at a time, with one clear action each. Color only where it matters: red for deadlines, green for money back, amber for cautions. Typeset in Atkinson Hyperlegible, a typeface built for low-vision readers, at large sizes.
+- **Today:** at most two things at a time, with one clear action each.
+- **Kin design system:** colors named by their job (green primary action, red only for deadlines, green for money back, amber for cautions and demo labels). Headlines in IBM Plex Serif; everything else in Atkinson Hyperlegible, a typeface built for low-vision readers, at 18–20px. Small 4–8px corners, 48px minimum targets, and quiet source tags that never compete with the fact they support. No emoji: only ✓, + and •.
 - **Chat with Kin:** short, plain-language answers. Type, speak (browser voice input), or attach a photo or PDF, such as an audiogram or receipt, which Claude reads. The full reasoning lives in the **Activity** panel.
 - **Approve or delegate:** Kin proposes one product with an image and the cost math. Ruth taps **Buy it**, or **Ask Priya to buy it**, which sends the proposal to the family chat for Priya to approve.
 - **Choose, with easy ratings:** Kin offers 2–3 options with its pick highlighted. Each option shows word-plus-bar ratings for price, fit, ease of use and return time, calculated from real data, never color alone. **Show more options** adds the rest of the catalog's FDA hearing aids instantly and says how many non-FDA products were left out.
